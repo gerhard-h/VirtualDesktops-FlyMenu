@@ -1,0 +1,7 @@
+/.vs
+/icons
+/obj
+/*.bak
+/*.user
+/Properties/PublishProfiles/*.user
+/bin
