@@ -96,7 +96,7 @@ namespace FlyMenu
         private void PopulateMenuFromConfig()
         {
             var configs = ConfigLoader.LoadMenuConfigs();
-            MenuBuilder.PopulateMenu(DummyMenu, configs, ExitApplication);
+            MenuBuilder.PopulateMenu(DummyMenu, configs);
         }
 
         private void CreatePollTimer()
@@ -235,12 +235,90 @@ namespace FlyMenu
         {
             try
             {
+                // Example: Parse message and execute menu action
+                // Message format examples:
+                // "DESKTOP2" - could map to a desktop GUID
+                // "switch left" - execute switch left action
+                // "run:notepad.exe" - run a command
+
                 MessageBox.Show($"Received message: {message}", "FlyMenu - WM_COPYDATA", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Example usage of ExecuteMenuAction:
+                // Create a MenuItemConfig based on the received message
+                var config = ParseMessageToConfig(message);
+                if (config != null)
+                {
+                    MenuActionHandler.ExecuteMenuAction(config);
+                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error handling message: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Parses a received message string into a MenuItemConfig
+        /// </summary>
+        private static MenuItemConfig? ParseMessageToConfig(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return null;
+
+            message = message.Trim();
+
+            // Handle desktop GUID format
+            if (Guid.TryParse(message, out _))
+            {
+                return new MenuItemConfig
+                {
+                    Type = "switch to",
+                    Parameter = message
+                };
+            }
+
+            // Handle "DESKTOP#" format - you'll need to map this to actual GUIDs
+            if (message.StartsWith("DESKTOP", StringComparison.OrdinalIgnoreCase))
+            {
+                // For now, treat as a simple command
+                return new MenuItemConfig
+                {
+                    Type = "switch to",
+                    Parameter = message // You may want to map DESKTOP2 -> actual GUID here
+                };
+            }
+
+            // Handle action types directly
+            var lowerMessage = message.ToLowerInvariant();
+            if (lowerMessage is "switch left" or "switch right" or "switch before")
+            {
+                return new MenuItemConfig
+                {
+                    Type = lowerMessage
+                };
+            }
+
+            // Handle run commands (format: "run:command")
+            if (message.StartsWith("run:", StringComparison.OrdinalIgnoreCase))
+            {
+                return new MenuItemConfig
+                {
+                    Type = "run",
+                    Parameter = message.Substring(4).Trim()
+                };
+            }
+
+            // Handle shortcut commands (format: "shortcut:KeyPress(F3)")
+            if (message.StartsWith("shortcut:", StringComparison.OrdinalIgnoreCase))
+            {
+                return new MenuItemConfig
+                {
+                    Type = "shortcut",
+                    Parameter = message.Substring(9).Trim()
+                };
+            }
+
+            return null;
         }
 
         private void ExitApplication()

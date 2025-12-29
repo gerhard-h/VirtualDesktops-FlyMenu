@@ -10,7 +10,7 @@ namespace FlyMenu
         /// <summary>
         /// Builds menu items from configuration and binds their actions
         /// </summary>
-        public static void PopulateMenu(ContextMenuStrip menu, List<MenuItemConfig> configs, Action onExit)
+        public static void PopulateMenu(ContextMenuStrip menu, List<MenuItemConfig> configs)
         {
             // Dispose old images and clear menu
             MenuUIHelper.DisposeMenuImages(menu);
@@ -45,7 +45,7 @@ namespace FlyMenu
                 MenuUIHelper.LoadIconForMenuItem(menuItem, cfg.Icon);
 
                 // Bind action to menu item
-                MenuActionHandler.BindActionToMenuItem(menuItem, cfg, onExit);
+                MenuActionHandler.BindActionToMenuItem(menuItem, cfg);
 
                 // Add to menu
                 menu.Items.Add(menuItem);

@@ -13,53 +13,57 @@ namespace FlyMenu
         /// <summary>
         /// Binds a click event to a menu item based on its configured type
         /// </summary>
-        public static void BindActionToMenuItem(ToolStripMenuItem menuItem, MenuItemConfig config, Action onExit)
+        public static void BindActionToMenuItem(ToolStripMenuItem menuItem, MenuItemConfig config)
+        {
+            menuItem.Click += (s, e) => ExecuteMenuAction(config);
+        }
+
+        /// <summary>
+        /// Executes a menu action based on its configuration without requiring a menu item
+        /// </summary>
+        public static void ExecuteMenuAction(MenuItemConfig config)
         {
             var type = config.Type?.ToLowerInvariant() ?? string.Empty;
 
             switch (type)
             {
                 case "exit":
-                    menuItem.Click += (s, e) => onExit();
                     break;
 
                 case "about":
-                    menuItem.Click += (s, e) =>
-                 MessageBox.Show("FlyMenu\nTray application", "About");
+                    MessageBox.Show("FlyMenu\nTray application", "About");
                     break;
 
                 case "switch before":
-                    menuItem.Click += (s, e) => SwitchToPreviousDesktop();
+                    SwitchToPreviousDesktop();
                     break;
 
                 case "switch to":
-                    menuItem.Click += (s, e) => SwitchToDesktop(config.Parameter);
+                    SwitchToDesktop(config.Parameter);
                     break;
 
                 case "switch right":
-                    menuItem.Click += (s, e) => SwitchToRightDesktop();
+                    SwitchToRightDesktop();
                     break;
 
                 case "switch left":
-                    menuItem.Click += (s, e) => SwitchToLeftDesktop();
+                    SwitchToLeftDesktop();
                     break;
 
                 case "open":
-                    menuItem.Click += (s, e) =>
-                             MessageBox.Show("Opening the selected application...", "Action");
+                    MessageBox.Show("Opening the selected application...", "Action");
                     break;
 
                 case "run":
-                    menuItem.Click += (s, e) => RunCommand(config.Parameter);
+                    RunCommand(config.Parameter);
                     break;
 
                 case "shortcut":
-                    menuItem.Click += (s, e) => ExecuteShortcut(config.Parameter);
+                    ExecuteShortcut(config.Parameter);
                     break;
 
                 default:
-                    menuItem.Click += (s, e) =>
-                   MessageBox.Show($"You clicked {config.Label}", "Menu Click");
+                    MessageBox.Show($"You clicked {config.Label}", "Menu Click");
                     break;
             }
         }
