@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using WindowsDesktop;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace FlyMenu
 {
@@ -16,6 +17,7 @@ namespace FlyMenu
         private readonly ContextMenuStrip trayMenu;
         private ContextMenuStrip flyoutMenu = null!;
         private System.Windows.Forms.Timer pollTimer = null!;
+        private MessageWindow? messageWindow;
 
         public static VirtualDesktop?[] DesktopHistory = new VirtualDesktop?[2];
 
@@ -27,6 +29,9 @@ namespace FlyMenu
         public TrayApplicationContext()
         {
             Application.ApplicationExit += OnApplicationExit;
+
+            // Create hidden message window to receive WM_COPYDATA
+            messageWindow = new MessageWindow(this);
 
             // Initialize tray menu
             trayMenu = new ContextMenuStrip();
@@ -223,10 +228,28 @@ namespace FlyMenu
             };
         }
 
+        /// <summary>
+        /// Handles messages received via WM_COPYDATA from external applications
+        /// </summary>
+        internal void HandleReceivedMessage(string message)
+        {
+            try
+            {
+                MessageBox.Show($"Received message: {message}", "FlyMenu - WM_COPYDATA", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error handling message: {ex.Message}");
+            }
+        }
+
         private void ExitApplication()
         {
             PollTimer?.Stop();
             PollTimer?.Dispose();
+
+            messageWindow?.DestroyHandle();
+            messageWindow = null;
 
             try
             {
@@ -273,6 +296,9 @@ namespace FlyMenu
                 }
                 catch { }
 
+                messageWindow?.DestroyHandle();
+                messageWindow = null;
+
                 PollTimer?.Stop();
                 PollTimer?.Dispose();
                 NotifyIcon?.Dispose();
@@ -281,6 +307,58 @@ namespace FlyMenu
             }
 
             base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>
+    /// Hidden window that receives WM_COPYDATA messages from external applications like AutoHotkey
+    /// </summary>
+    internal class MessageWindow : NativeWindow
+    {
+        private const int WM_COPYDATA = 0x004A;
+        private readonly TrayApplicationContext context;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct COPYDATASTRUCT
+        {
+            public IntPtr dwData;
+            public int cbData;
+            public IntPtr lpData;
+        }
+
+        public MessageWindow(TrayApplicationContext context)
+        {
+            this.context = context;
+            CreateHandle(new CreateParams
+            {
+                Caption = "FlyMenuReceiverWindow",
+                Parent = IntPtr.Zero,
+                Style = 0
+            });
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_COPYDATA)
+            {
+                try
+                {
+                    var cds = Marshal.PtrToStructure<COPYDATASTRUCT>(m.LParam);
+                    if (cds.cbData > 0 && cds.lpData != IntPtr.Zero)
+                    {
+                        string message = Marshal.PtrToStringUTF8(cds.lpData, cds.cbData - 1) ?? string.Empty;
+                        context.HandleReceivedMessage(message);
+                        m.Result = (IntPtr)1; // Return 1 to indicate success
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error in WndProc: {ex.Message}");
+                }
+            }
+
+            base.WndProc(ref m);
         }
     }
 }
