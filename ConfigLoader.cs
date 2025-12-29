@@ -18,7 +18,7 @@ namespace FlyMenu
 
         private static FlyMenuConfig? cachedConfig = null;
         private static DateTime lastConfigLoad = DateTime.MinValue;
-        private static readonly TimeSpan CacheExpiration = TimeSpan.FromSeconds(3600);
+        private static readonly TimeSpan CacheExpiration = TimeSpan.FromSeconds(1);
  private static int cacheHitCount = 0;
 
         /// <summary>
@@ -232,6 +232,17 @@ System.Diagnostics.Debug.WriteLine($"ExpandDesktopList: Found {desktops.Length} 
             {
         System.Diagnostics.Debug.WriteLine("ExpandDesktopList: No DESKTOP LIST placeholder found");
       }
+        }
+
+        /// <summary>
+        /// Clears the cached configuration, forcing a reload on next access
+        /// </summary>
+        public static void ClearCache()
+        {
+            System.Diagnostics.Debug.WriteLine("ConfigLoader: Clearing cache");
+            cachedConfig = null;
+            lastConfigLoad = DateTime.MinValue;
+            cacheHitCount = 0;
         }
     }
 }
