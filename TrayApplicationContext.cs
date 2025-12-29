@@ -15,7 +15,7 @@ namespace FlyMenu
     {
         private readonly NotifyIcon notifyIcon;
         private readonly ContextMenuStrip trayMenu;
-        private ContextMenuStrip flyoutMenu = null!;
+        private readonly ContextMenuStrip flyoutMenu;  // Make it readonly, remove null!
         private System.Windows.Forms.Timer pollTimer = null!;
         private MessageWindow? messageWindow;
 
@@ -23,7 +23,8 @@ namespace FlyMenu
 
         public NotifyIcon NotifyIcon => notifyIcon;
         public ContextMenuStrip TrayMenu => trayMenu;
-        public ContextMenuStrip DummyMenu { get => flyoutMenu; set => flyoutMenu = value; }
+        // Remove: public ContextMenuStrip DummyMenu { get => flyoutMenu; set => flyoutMenu = value; }
+        public ContextMenuStrip FlyoutMenu => flyoutMenu;  // Optional: expose if needed
         public System.Windows.Forms.Timer PollTimer { get => pollTimer; set => pollTimer = value; }
 
         public TrayApplicationContext()
@@ -49,8 +50,8 @@ namespace FlyMenu
             notifyIcon.MouseClick += NotifyIcon_MouseClick;
 
             // Create the flyout menu container (items will be populated on demand)
-            DummyMenu = new ContextMenuStrip();
-            DummyMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
+            flyoutMenu = new ContextMenuStrip();  // Changed from DummyMenu
+            flyoutMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
 
             // Subscribe to VirtualDesktop changes
             VirtualDesktop.CurrentChanged += OnVirtualDesktopCurrentChanged;
@@ -89,14 +90,14 @@ namespace FlyMenu
                 var screen = Screen.FromPoint(cursor);
                 var hotArea = ConfigLoader.GetHotAreaConfig();
                 PopulateMenuFromConfig();
-                MenuUIHelper.ShowMenuCenteredUnderCursor(DummyMenu, cursor, screen, cursor.Y, hotArea.Edge, hotArea.CatchMouse, hotArea.CatchHeight);
+                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, cursor.Y, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
             }
         }
 
         private void PopulateMenuFromConfig()
         {
             var configs = ConfigLoader.LoadMenuConfigs();
-            MenuBuilder.PopulateMenu(DummyMenu, configs);
+            MenuBuilder.PopulateMenu(flyoutMenu, configs);
         }
 
         private void CreatePollTimer()
@@ -121,24 +122,24 @@ namespace FlyMenu
             // Show when cursor is in hot area
             if (isInHotArea)
             {
-                if (!DummyMenu.Visible)
+                if (!flyoutMenu.Visible)
                 {
                     PopulateMenuFromConfig();
-                    MenuUIHelper.ShowMenuCenteredUnderCursor(DummyMenu, cursor, screen, GetMenuYPosition(screen, hotArea), hotArea.Edge, hotArea.CatchMouse, hotArea.CatchHeight);
+                    MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, GetMenuYPosition(screen, hotArea), hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
                 }
 
                 return;
             }
 
             // Hide menu if visible and cursor moves away from it
-            if (DummyMenu.Visible)
+            if (flyoutMenu.Visible)
             {
-                var bounds = DummyMenu.Bounds;
+                var bounds = flyoutMenu.Bounds;
                 var padded = Rectangle.Inflate(bounds, 8, 8);
                 if (!padded.Contains(cursor))
                 {
                     MenuUIHelper.DisableMouseCatch();
-                    DummyMenu.Close();
+                    flyoutMenu.Close();
                 }
             }
         }
@@ -236,12 +237,9 @@ namespace FlyMenu
             try
             {
                 // Example: Parse message and execute menu action
-                // Message format examples:
-                // "DESKTOP2" - could map to a desktop GUID
-                // "switch left" - execute switch left action
-                // "run:notepad.exe" - run a command
+                // The message must match the menu lable
 
-                MessageBox.Show($"Received message: {message}", "FlyMenu - WM_COPYDATA", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                //MessageBox.Show($"Received message: {message}", "FlyMenu - WM_COPYDATA", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 // Example usage of ExecuteMenuAction:
                 // Create a MenuItemConfig based on the received message
@@ -267,25 +265,14 @@ namespace FlyMenu
 
             message = message.Trim();
 
-            // Handle desktop GUID format
-            if (Guid.TryParse(message, out _))
+            var configs = ConfigLoader.LoadMenuConfigs();
+            
+            foreach (var config in configs)
             {
-                return new MenuItemConfig
+                if (config.Label == message)
                 {
-                    Type = "switch to",
-                    Parameter = message
-                };
-            }
-
-            // Handle "DESKTOP#" format - you'll need to map this to actual GUIDs
-            if (message.StartsWith("DESKTOP", StringComparison.OrdinalIgnoreCase))
-            {
-                // For now, treat as a simple command
-                return new MenuItemConfig
-                {
-                    Type = "switch to",
-                    Parameter = message // You may want to map DESKTOP2 -> actual GUID here
-                };
+                    return config;
+                }
             }
 
             // Handle action types directly
@@ -295,26 +282,6 @@ namespace FlyMenu
                 return new MenuItemConfig
                 {
                     Type = lowerMessage
-                };
-            }
-
-            // Handle run commands (format: "run:command")
-            if (message.StartsWith("run:", StringComparison.OrdinalIgnoreCase))
-            {
-                return new MenuItemConfig
-                {
-                    Type = "run",
-                    Parameter = message.Substring(4).Trim()
-                };
-            }
-
-            // Handle shortcut commands (format: "shortcut:KeyPress(F3)")
-            if (message.StartsWith("shortcut:", StringComparison.OrdinalIgnoreCase))
-            {
-                return new MenuItemConfig
-                {
-                    Type = "shortcut",
-                    Parameter = message.Substring(9).Trim()
                 };
             }
 
@@ -338,7 +305,7 @@ namespace FlyMenu
             NotifyIcon.Visible = false;
             NotifyIcon.Dispose();
             TrayMenu.Dispose();
-            DummyMenu.Dispose();
+            flyoutMenu.Dispose();
 
             Application.Exit();
         }
@@ -381,7 +348,7 @@ namespace FlyMenu
                 PollTimer?.Dispose();
                 NotifyIcon?.Dispose();
                 TrayMenu?.Dispose();
-                DummyMenu?.Dispose();
+                flyoutMenu?.Dispose();
             }
 
             base.Dispose(disposing);

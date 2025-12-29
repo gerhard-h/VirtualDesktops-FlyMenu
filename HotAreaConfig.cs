@@ -35,6 +35,8 @@ namespace FlyMenu
 
         [JsonPropertyName("catchHeight")]
         public int CatchHeight { get; set; } = 10;
+        [JsonPropertyName("triggerHeight")]
+        public int triggerHeight { get; set; } = 5;
     }
 
     /// <summary>

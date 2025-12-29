@@ -21,7 +21,7 @@ if A_Args.Length > 0 {
     payload := "DESKTOP2"
 }
 
-SetTimer SwitchLater, -10
+SetTimer SwitchLater, -100
   
 SwitchLater() {
     global payload  ; Access the outer payload variable
