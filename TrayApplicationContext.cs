@@ -294,7 +294,16 @@ namespace FlyMenu
 
             try
             {
-                var config = ParseMessageToConfig(message);
+                var config = new MenuItemConfig();
+
+                if (message == "quit" || message == "show" || message == "reload")
+                {
+                    
+                }
+                else
+                {
+                    config = ParseMessageToConfig(message);
+                }
                 if (config != null)
                 {
                     System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Config found: Type={config.Type}, Parameter={config.Parameter}");
