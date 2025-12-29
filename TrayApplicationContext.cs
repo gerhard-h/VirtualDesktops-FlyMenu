@@ -15,20 +15,26 @@ namespace FlyMenu
     {
         private readonly NotifyIcon notifyIcon;
         private readonly ContextMenuStrip trayMenu;
-        private readonly ContextMenuStrip flyoutMenu;  // Make it readonly, remove null!
+        private readonly ContextMenuStrip flyoutMenu;
         private System.Windows.Forms.Timer pollTimer = null!;
         private MessageWindow? messageWindow;
+        private readonly int uiThreadId;
 
         public static VirtualDesktop?[] DesktopHistory = new VirtualDesktop?[2];
 
         public NotifyIcon NotifyIcon => notifyIcon;
         public ContextMenuStrip TrayMenu => trayMenu;
-        // Remove: public ContextMenuStrip DummyMenu { get => flyoutMenu; set => flyoutMenu = value; }
-        public ContextMenuStrip FlyoutMenu => flyoutMenu;  // Optional: expose if needed
+        public ContextMenuStrip FlyoutMenu => flyoutMenu;
         public System.Windows.Forms.Timer PollTimer { get => pollTimer; set => pollTimer = value; }
 
         public TrayApplicationContext()
         {
+            System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initializing...");
+
+            // Capture UI thread ID
+            uiThreadId = Environment.CurrentManagedThreadId;
+            System.Diagnostics.Debug.WriteLine($"TrayApplicationContext: UI Thread ID = {uiThreadId}");
+
             Application.ApplicationExit += OnApplicationExit;
 
             // Create hidden message window to receive WM_COPYDATA
@@ -50,13 +56,28 @@ namespace FlyMenu
             notifyIcon.MouseClick += NotifyIcon_MouseClick;
 
             // Create the flyout menu container (items will be populated on demand)
-            flyoutMenu = new ContextMenuStrip();  // Changed from DummyMenu
+            flyoutMenu = new ContextMenuStrip();
             flyoutMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
 
             // Subscribe to VirtualDesktop changes
+            System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Subscribing to VirtualDesktop.CurrentChanged...");
             VirtualDesktop.CurrentChanged += OnVirtualDesktopCurrentChanged;
 
+            // Initialize VirtualDesktop library by querying current desktop
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initializing VirtualDesktop library...");
+                var current = VirtualDesktop.Current;
+                var desktops = VirtualDesktop.GetDesktops();
+                System.Diagnostics.Debug.WriteLine($"TrayApplicationContext: VirtualDesktop initialized. Current = {current?.Id}, Total desktops = {desktops.Length}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"TrayApplicationContext: VirtualDesktop initialization WARNING: {ex.GetType().Name}: {ex.Message}");
+            }
+
             CreatePollTimer();
+            System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initialization complete");
         }
 
         /// <summary>
@@ -236,23 +257,72 @@ namespace FlyMenu
         {
             try
             {
-                // Example: Parse message and execute menu action
-                // The message must match the menu lable
+                // Check if we're on the UI thread
+                int currentThreadId = Environment.CurrentManagedThreadId;
+                System.Diagnostics.Debug.WriteLine($"HandleReceivedMessage called with: {message}");
+                System.Diagnostics.Debug.WriteLine($"Current thread ID: {currentThreadId}, UI thread ID: {uiThreadId}");
 
-                //MessageBox.Show($"Received message: {message}", "FlyMenu - WM_COPYDATA", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                // Example usage of ExecuteMenuAction:
-                // Create a MenuItemConfig based on the received message
-                var config = ParseMessageToConfig(message);
-                if (config != null)
+                // Marshal to UI thread if needed
+                if (currentThreadId != uiThreadId)
                 {
-                    MenuActionHandler.ExecuteMenuAction(config);
+                    System.Diagnostics.Debug.WriteLine("Marshaling to UI thread...");
+                    trayMenu.BeginInvoke(new Action(() =>
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Now executing on UI thread (ID: {Environment.CurrentManagedThreadId})");
+                            ProcessMessage(message);
+                        }));
+                    return;
                 }
+
+                System.Diagnostics.Debug.WriteLine("Already on UI thread, processing message...");
+                ProcessMessage(message);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error handling message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
+        }
+
+        /// <summary>
+        /// Processes the message on the UI thread (separated to avoid recursion)
+        /// </summary>
+        private void ProcessMessage(string message)
+        {
+            var callId = Guid.NewGuid().ToString().Substring(0, 8);
+            System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: ENTRY - Message='{message}'");
+
+            try
+            {
+                var config = ParseMessageToConfig(message);
+                if (config != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Config found: Type={config.Type}, Parameter={config.Parameter}");
+                    // Defer execution to avoid COM reentrancy issues (RPC_E_CANTCALLOUT_ININPUTSYNCCALL)
+                    // Use a timer to post the action after WM_COPYDATA processing completes
+                    var deferTimer = new System.Windows.Forms.Timer { Interval = 1 };
+                    deferTimer.Tick += (s, e) =>
+                    {
+                        deferTimer.Stop();
+                        deferTimer.Dispose();
+                        System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Executing deferred menu action...");
+                        MenuActionHandler.ExecuteMenuAction(config);
+                        System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Deferred menu action completed");
+                    };
+                    deferTimer.Start();
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Timer started");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: No matching config found for message");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: ERROR - {ex.Message}");
+            }
+
+            System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: EXIT");
         }
 
         /// <summary>
@@ -261,33 +331,45 @@ namespace FlyMenu
         private static MenuItemConfig? ParseMessageToConfig(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
-                return null;
+   {
+         System.Diagnostics.Debug.WriteLine("ParseMessageToConfig: Message is null or whitespace");
+       return null;
+            }
 
-            message = message.Trim();
+        message = message.Trim();
+     System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Parsing message '{message}'");
 
-            var configs = ConfigLoader.LoadMenuConfigs();
-            
+       var configs = ConfigLoader.LoadMenuConfigs();
+         System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Loaded {configs.Count} configs");
+
             foreach (var config in configs)
-            {
-                if (config.Label == message)
-                {
-                    return config;
+  {
+                System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Comparing with label '{config.Label}'");
+   if (string.Equals(config.Label, message, StringComparison.OrdinalIgnoreCase))
+      {
+             System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: MATCH FOUND! Label='{config.Label}', Type='{config.Type}'");
+           return config;
                 }
-            }
+       }
 
+     System.Diagnostics.Debug.WriteLine("ParseMessageToConfig: No label match, checking direct action types...");
+            
             // Handle action types directly
-            var lowerMessage = message.ToLowerInvariant();
-            if (lowerMessage is "switch left" or "switch right" or "switch before")
+   var lowerMessage = message.ToLowerInvariant();
+            System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Normalized message = '{lowerMessage}'");
+   
+  if (lowerMessage is "switch left" or "switch right" or "switch before")
             {
-                return new MenuItemConfig
-                {
-                    Type = lowerMessage
-                };
-            }
+System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct action config for '{lowerMessage}'");
+ return new MenuItemConfig
+   {
+     Type = lowerMessage
+          };
+}
 
-            return null;
+            System.Diagnostics.Debug.WriteLine("ParseMessageToConfig: No match found, returning null");
+        return null;
         }
-
         private void ExitApplication()
         {
             PollTimer?.Stop();
@@ -319,15 +401,22 @@ namespace FlyMenu
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("OnVirtualDesktopCurrentChanged: Desktop change detected");
+                System.Diagnostics.Debug.WriteLine($"  Old Desktop: {args.OldDesktop?.Name} (ID: {args.OldDesktop?.Id})");
+                System.Diagnostics.Debug.WriteLine($"  New Desktop: {args.NewDesktop?.Name} (ID: {args.NewDesktop?.Id})");
+
                 DesktopHistory[0] = args.OldDesktop;
                 DesktopHistory[1] = args.NewDesktop;
                 var name = args.NewDesktop?.Name ?? "Unknown";
+
+                System.Diagnostics.Debug.WriteLine($"Desktop history updated. History[0] = {DesktopHistory[0]?.Id}, History[1] = {DesktopHistory[1]?.Id}");
                 //notifyIcon.Text = $"FlyMenu - Current Desktop: {name}";
                 //notifyIcon.ShowBalloonTip(1000, "Desktop Changed", $"Switched to desktop: {name}", ToolTipIcon.Info);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Handle or log error if needed
+                System.Diagnostics.Debug.WriteLine($"OnVirtualDesktopCurrentChanged ERROR: {ex.GetType().Name}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
 
@@ -380,26 +469,34 @@ namespace FlyMenu
                 Parent = IntPtr.Zero,
                 Style = 0
             });
+            System.Diagnostics.Debug.WriteLine($"MessageWindow created with handle: 0x{Handle:X}");
         }
 
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == WM_COPYDATA)
             {
+                System.Diagnostics.Debug.WriteLine($"WM_COPYDATA received!");
                 try
                 {
                     var cds = Marshal.PtrToStructure<COPYDATASTRUCT>(m.LParam);
                     if (cds.cbData > 0 && cds.lpData != IntPtr.Zero)
                     {
                         string message = Marshal.PtrToStringUTF8(cds.lpData, cds.cbData - 1) ?? string.Empty;
+                        System.Diagnostics.Debug.WriteLine($"Message content: '{message}'");
                         context.HandleReceivedMessage(message);
                         m.Result = (IntPtr)1; // Return 1 to indicate success
                         return;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Invalid COPYDATASTRUCT: cbData={cds.cbData}, lpData=0x{cds.lpData:X}");
                     }
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error in WndProc: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                 }
             }
 

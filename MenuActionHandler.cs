@@ -72,18 +72,26 @@ namespace FlyMenu
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("SwitchToPreviousDesktop: Checking desktop history...");
                 if (TrayApplicationContext.DesktopHistory[0] != null)
                 {
+                    System.Diagnostics.Debug.WriteLine($"SwitchToPreviousDesktop: Switching to history desktop {TrayApplicationContext.DesktopHistory[0]?.Id}");
                     TrayApplicationContext.DesktopHistory[0]?.Switch();
+                    System.Diagnostics.Debug.WriteLine("SwitchToPreviousDesktop: Switch completed successfully");
                 }
                 else
                 {
+                    System.Diagnostics.Debug.WriteLine("SwitchToPreviousDesktop: No history, getting all desktops...");
                     var desktops = VirtualDesktop.GetDesktops();
+                    System.Diagnostics.Debug.WriteLine($"SwitchToPreviousDesktop: Found {desktops.Length} desktops");
                     desktops.LastOrDefault()?.Switch();
+                    System.Diagnostics.Debug.WriteLine("SwitchToPreviousDesktop: Switched to last desktop");
                 }
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"SwitchToPreviousDesktop ERROR: {ex.GetType().Name}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                 MessageBox.Show($"Failed to switch desktop: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -92,28 +100,42 @@ namespace FlyMenu
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"SwitchToDesktop: Parameter = '{parameter}'");
                 if (string.IsNullOrEmpty(parameter) || !Guid.TryParse(parameter, out var id))
                 {
+                    System.Diagnostics.Debug.WriteLine("SwitchToDesktop ERROR: Invalid GUID parameter");
                     MessageBox.Show("Invalid desktop id in config parameter", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
+                System.Diagnostics.Debug.WriteLine($"SwitchToDesktop: Parsed GUID = {id}");
+
                 try
                 {
+                    System.Diagnostics.Debug.WriteLine("SwitchToDesktop: Attempting FromId...");
                     // Preferred: use API if available
                     var target = VirtualDesktop.FromId(id);
+                    System.Diagnostics.Debug.WriteLine($"SwitchToDesktop: FromId returned {(target != null ? "desktop" : "null")}");
                     target?.Switch();
+                    System.Diagnostics.Debug.WriteLine("SwitchToDesktop: Switch completed successfully");
                 }
-                catch
+                catch (Exception innerEx)
                 {
+                    System.Diagnostics.Debug.WriteLine($"SwitchToDesktop: FromId failed with {innerEx.GetType().Name}: {innerEx.Message}");
+                    System.Diagnostics.Debug.WriteLine("SwitchToDesktop: Trying fallback enumeration...");
                     // Fallback: enumerate and match Id
                     var desktops = VirtualDesktop.GetDesktops();
+                    System.Diagnostics.Debug.WriteLine($"SwitchToDesktop: Found {desktops.Length} desktops");
                     var found = desktops.FirstOrDefault(d => d.Id == id);
+                    System.Diagnostics.Debug.WriteLine($"SwitchToDesktop: Match found = {found != null}");
                     found?.Switch();
+                    System.Diagnostics.Debug.WriteLine("SwitchToDesktop: Fallback switch completed");
                 }
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"SwitchToDesktop ERROR: {ex.GetType().Name}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                 MessageBox.Show($"Failed to switch desktop: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -144,22 +166,33 @@ namespace FlyMenu
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("SwitchToLeftDesktop: Getting current desktop...");
                 var current = VirtualDesktop.Current;
+                System.Diagnostics.Debug.WriteLine($"SwitchToLeftDesktop: Current desktop = {current?.Id}");
+
                 var left = current.GetLeft();
+                System.Diagnostics.Debug.WriteLine($"SwitchToLeftDesktop: Left desktop = {left?.Id}");
+
                 if (left != null)
                 {
+                    System.Diagnostics.Debug.WriteLine("SwitchToLeftDesktop: Switching to left desktop...");
                     left.Switch();
+                    System.Diagnostics.Debug.WriteLine("SwitchToLeftDesktop: Switch completed successfully");
                 }
                 else
                 {
+                    System.Diagnostics.Debug.WriteLine("SwitchToLeftDesktop: No left desktop, wrapping to last...");
                     // Optionally wrap to first
                     var desktops = VirtualDesktop.GetDesktops();
                     desktops.LastOrDefault()?.Switch();
+                    System.Diagnostics.Debug.WriteLine("SwitchToLeftDesktop: Wrapped to last desktop");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to switch desktop: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"SwitchToLeftDesktop ERROR: {ex.GetType().Name}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                MessageBox.Show($"Failed to switch desktop: {ex.Message}\n\nType: {ex.GetType().Name}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
