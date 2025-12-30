@@ -294,16 +294,45 @@ namespace FlyMenu
 
             try
             {
-                var config = new MenuItemConfig();
+                // Handle special built-in commands first
+                var lowerMessage = message.Trim().ToLowerInvariant();
 
-                if (message == "quit" || message == "show" || message == "reload")
+                if (lowerMessage == "quit" || lowerMessage == "exit" || lowerMessage == "stop")
                 {
-                    
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Quit command received");
+                    ExitApplication();
+                    return;
                 }
-                else
+
+                if (lowerMessage == "show")
                 {
-                    config = ParseMessageToConfig(message);
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Show command received");
+                    var deferTimer = new System.Windows.Forms.Timer { Interval = 1 };
+                    deferTimer.Tick += (s, e) =>
+                    {
+                        deferTimer.Stop();
+                        deferTimer.Dispose();
+                        var cursor = Cursor.Position;
+                        var screen = Screen.FromPoint(cursor);
+                        var hotArea = ConfigLoader.GetHotAreaConfig();
+                        PopulateMenuFromConfig();
+                        MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, cursor.Y, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+                    };
+                    deferTimer.Start();
+                    return;
                 }
+
+                if (lowerMessage == "reload")
+                {
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Reload command received");
+                    ConfigLoader.ClearCache();
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Config cache cleared");
+                    return;
+                }
+
+                // Parse regular menu actions
+                var config = ParseMessageToConfig(message);
+
                 if (config != null)
                 {
                     System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Config found: Type={config.Type}, Parameter={config.Parameter}");

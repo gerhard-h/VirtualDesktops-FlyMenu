@@ -27,6 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="FlyCtl.ahk">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="FlyMenu.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -1,11 +1,8 @@
+;AutoHotkey v1 version 
+exepath := "C:\path\fly\FlyMenu.exe" ;; Change this to the actual path of FlyMenu.exe
+exename := "FlyMenu.exe"
 DetectHiddenWindows true
-
 winTitle := "FlyMenuReceiverWindow"
-hwnd := WinExist(winTitle)
-if !hwnd {
-    MsgBox "Receiver window not found."
-    return
-}
 
 ; Get command line arguments
 payload := ""
@@ -18,7 +15,24 @@ if A_Args.Length > 0 {
     }
 } else {
     ; Default payload if no arguments provided
-    payload := "DESKTOP2"
+    payload := "show"
+}
+
+hwnd := WinExist(winTitle)
+if !hwnd {
+    
+    if( payload == "start") {
+       Run A_ScriptDir . "\" . exename
+       return
+    } else {
+        MsgBox "Receiver window not found."
+        return
+    }
+}
+
+if (payload == "stop" or payload == "exit" or payload == "quit") {
+    Run  "taskkill /f /im " . exename
+    return
 }
 
 SetTimer SwitchLater, -100

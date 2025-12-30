@@ -1,10 +1,23 @@
 ﻿# VirtualDesktops-FlyMenu
 
-A customizable fly-out menu triggered by (parts) of the screen edges.
+A customizable fly-out menu triggered by (parts) of the screen edges or hotkey
 
 This is a more conceized,faster alternative to Windows WIN+TAB functionality, for switching desktops.
 It also works while in full-screen remote desktop sessions.
-It can also or exclusivly be used as a launchpad vor programs or to execute keyboard shortcuts.
+It can also or exclusivly be used as a launchpad for programs or to execute keyboard shortcuts.
+
+## Shortcut / Taskbar / .lnk File support
+With the included `flyctl` script `autohotkey flyctl.ahk "Desktop 2"` you can create shortcuts
+to desktop actions (or any other actions) on the taskbar.
+
+## Hotkey (inbound) support
+Bind `autohotkey flyctl.ahk show` to any mouse key or gesture as an alternative activation method 
+to screen edge trigger. 
+
+## flyctl.ahk
+flyctl accepts any label in the menu as parameter `flyctl.ahk Next Desktop` 
+is the same as `flyctl.ahk "Next Desktop"` 
+There are some special commands: `start stop show reload quit exit`
 
 ```
 ┌──────────┌────────────▼────────┐─────────────────────────────────────┐
@@ -22,13 +35,12 @@ It can also or exclusivly be used as a launchpad vor programs or to execute keyb
 │          └─────────────────────┘  
 │       
 │  
-│     
-│         
-└──────────────────────────────────────────────────────────────────────┘
+│          ┌─┐┌─┐┌─┐┌─┐
+│          │⊞││1││2││3│
+└──────────└─┘└─┘└─┘└─┘────────────────────────────────────────────────┘
 ```
 
 ## 🌟 Features
-
 - **🖱️ Edge-Triggered Menu** - Hover your mouse at any screen edge (top, bottom, left, right) to instantly reveal the menu
 - **🖥️ Virtual Desktop Management** - Switch between Windows virtual desktops seamlessly
   - Switch to last used desktop
@@ -39,12 +51,16 @@ It can also or exclusivly be used as a launchpad vor programs or to execute keyb
 - **📍 Smart Positioning** - Menu appears centered under cursor with first menu item highlighted
 - **💾 JSON Configuration** - Easy-to-edit configuration with JSON comments support
 - **🎨 Icon Support** - Custom icons for menu items
+- ** flyctl script to interact with FlyMenu from other applications
 
 ## 📋 Requirements/ Tested Environment
 
 -  Windows 11 (2025-12-23 or newer)
-- .NET 8.0 Runtime 
+- .NET 8.0 Runtime (or newer) 
 - Virtual Desktop feature enabled
+- This is mouse only - `flyctl.ahk show` is meant to be bound to a mouse key (for full keyboard support reimplement the menu with Autohotkey)
+
+P.S. The only reason this is not done in Autohotkey is, that Autohotkey misses a "close menu on focus lost" ability
 
 ## 🚀 Installation
 
@@ -54,84 +70,26 @@ You have to build the project from source.
 ## ⚙️ Configuration
 
 FlyMenu is configured through the `FlyMenu.config` JSON file in the application directory.
+Details are within the .config file itself.
 
-### Hot Area Configuration
-
-Control where and how the menu triggers:
-
-```json
-{
-  "hotArea": {
-    "edge": "top",       /* Screen edge: "top", "bottom", "left", or "right" */
-    "startPercentage": 15,      /* Start position along edge (0-100%) */
-    "endPercentage": 45,     /* End position along edge (0-100%) */
-    "catchMouse": true,         /* Keep mouse from sliding off menu */
-    "catchHeight": 10,          /* Pixels to reset mouse position */
-  }
-}
-```
-
-#### Edge Options
-- **`"top"`** - Top edge of screen (most common)
-- **`"bottom"`** - Bottom edge of screen
-- **`"left"`** - Left edge of screen
-- **`"right"`** - Right edge of screen
-
-#### Percentage Range
-- **0-100%** - Define the active portion of the screen edge
-- Example: `15-45%` creates a trigger zone in the center-left portion
-- Example: `0-100%` uses the entire edge
-
-### Styling Configuration
-
-Customize the menu appearance:
-
-```json
-{
-  "styling": {
-    "fontName": "Segoe UI",     /* Font family name */
-    "fontSize": 11/* Font size in points */
-  }
-}
-```
-
-### Menu Items
-
-Define menu actions:
-
-```json
-{
-  "menuItems": [
-    {
-      "label": "Desktop List",
-      "type": "switch to",
-      "parameter": "%id%",
-      "icon": "desktop.ico"
- }
-  ]
-}
-```
 
 ## 📝 Menu Item Types
 
 ### Virtual Desktop Actions
 
-| Type | Description | Parameter | Example |
-|------|-------------|-----------|---------|
-| `switch before` | Switch to previous desktop | Not used | Switch to last visited desktop |
-| `switch to` | Switch to specific desktop | Desktop GUID | Direct desktop switching |
-| `switch right` | Switch to next desktop | Not used | Cycles right with rollover |
-| `switch left` | Switch to previous desktop | Not used | Cycles left with rollover |
+| `switch before` | Switch to last visited desktop |
+| `switch to` | Switch to specific desktop GUID | Direct desktop switching |
+| `switch right` | Cycles right with rollover |
+| `switch left` | Cycles left with rollover |
 
-### System Actions
-
-| Type | Description | Parameter | Example |
-|------|-------------|-----------|---------|
-| `run` | Execute program/command | Command line | `"notepad.exe"` or `"sharex -workflow capture"` |
-| `shortcut` | Execute keyboard shortcut | Shortcut format | `"ModifiedKeyStroke(LWIN, VK_D)"` |
-| `exit` | Exit FlyMenu | Not used | Exit application |
+### Other Actions
+| `run` | Execute program/command like `"notepad.exe"` or `"sharex -workflow capture"` |
+| `shortcut` | Execute keyboard shortcut the syntax resembles the syntax of the library used  `"ModifiedKeyStroke(LWIN, VK_D)"` |
+| `exit` | does nothing besides closeing the menu |
 
 ### Shortcut Format
+
+Warning: LALT is called LMENU in this library
 
 Two formats are supported:
 
@@ -152,7 +110,7 @@ Two formats are supported:
 ```
 
 **Format**: `ModifiedKeyStroke(modifiers, keys)`
-- **Modifiers** (space-separated): `LWIN`, `RWIN`, `LCONTROL`, `RCONTROL`, `LALT`, `RALT`, `LSHIFT`, `RSHIFT`
+- **Modifiers** (space-separated): `LWIN`, `RWIN`, `LCONTROL`, `RCONTROL`, `LMENU`, `RMENU`, `LSHIFT`, `RSHIFT`
 - **Keys** (space-separated): Any virtual key code (e.g., `VK_D`, `TAB`, `F3`, `ESCAPE`)
 
 **Examples**:
@@ -169,7 +127,7 @@ Two formats are supported:
 {
   "label": "DESKTOP LIST",
   "type": "switch to",
-  "parameter": "%id%"
+  "parameter": ""
 }
 ```
 
@@ -193,90 +151,6 @@ Icons are loaded from the `icons` subfolder in the application directory.
 
 ### Supported Formats
 - `.ico` - Windows icon format
-
-## 💡 Usage Examples
-
-### Example 1: Top Edge Menu (Default)
-```json
-{
-  "hotArea": {
-    "edge": "top",
-    "startPercentage": 0,
-    "endPercentage": 100,
-    "hotkey": "CTRL+ALT+M"
-  }
-}
-```
-Move mouse to top of scree
-
-### Example 2: Corner Trigger
-```json
-{
-  "hotArea": {
-    "edge": "top",
-    "startPercentage": 0,
-    "endPercentage": 20
-  }
-}
-```
-Only triggers in top-left corner (first 20% of screen width)
-
-### Example 3: Right Edge Menu
-```json
-{
-  "hotArea": {
-    "edge": "right",
-    "startPercentage": 30,
-    "endPercentage": 70
-  }
-}
-```
-Triggers on right edge, middle 40% of screen height
-
-### Example 4: Comprehensive Menu
-```json
-{
-  "menuItems": [
-    {
-      "label": "Previous Desktop",
-      "type": "switch before",
-   "icon": "arrow-left.ico"
-    },
-    {
-      "label": "DESKTOP LIST",
-      "type": "switch to",
-      "parameter": "%id%"
-    },
-    {
-      "label": "Next Desktop",
- "type": "switch right",
-      "icon": "arrow-right.ico"
-    },
-    {
- "label": "Show Desktop",
-      "type": "shortcut",
-      "parameter": "ModifiedKeyStroke(LWIN, VK_D)",
-      "icon": "desktop.ico"
-    },
-    {
-      "label": "Task View",
-      "type": "shortcut",
-   "parameter": "ModifiedKeyStroke(LWIN, TAB)",
-      "icon": "task-view.ico"
-    },
-    {
-      "label": "Screenshot",
-      "type": "run",
-      "parameter": "snippingtool.exe",
-      "icon": "screenshot.ico"
-    },
-    {
-      "label": "Exit FlyMenu",
-      "type": "exit"
- }
-  ]
-}
-```
 
 ## 🔧 Advanced Features
 
