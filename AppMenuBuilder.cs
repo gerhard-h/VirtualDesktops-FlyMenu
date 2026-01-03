@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using WindowsDesktop;  // Add this for VirtualDesktop support
 
 namespace FlyMenu
 {
@@ -11,163 +12,244 @@ namespace FlyMenu
     /// </summary>
     internal static class AppMenuBuilder
     {
-   // P/Invoke declarations for Windows API
-   [DllImport("user32.dll")]
+        // P/Invoke declarations for Windows API
+      [DllImport("user32.dll")]
         private static extern bool IsWindowVisible(IntPtr hWnd);
 
         [DllImport("user32.dll")]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
 
-     [DllImport("user32.dll")]
+        [DllImport("user32.dll")]
         private static extern int GetWindowTextLength(IntPtr hWnd);
 
         [DllImport("user32.dll")]
         private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
 
         [DllImport("user32.dll")]
-        private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+    private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
 
-        [DllImport("user32.dll")]
-    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+   [DllImport("user32.dll")]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-      [DllImport("user32.dll")]
+        [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         [DllImport("user32.dll")]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
         [DllImport("user32.dll")]
-    private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+ private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-        private const int GWL_EXSTYLE = -20;
-        private const int WS_EX_TOOLWINDOW = 0x00000080;
+     private const int GWL_EXSTYLE = -20;
+  private const int WS_EX_TOOLWINDOW = 0x00000080;
         private const uint GW_OWNER = 4;
         private const int SW_RESTORE = 9;
-        private const uint WM_GETICON = 0x007F;
-        private const uint ICON_SMALL = 0;
+    private const uint WM_GETICON = 0x007F;
+ private const uint ICON_SMALL = 0;
         private const uint ICON_BIG = 1;
         private const uint ICON_SMALL2 = 2;
 
-    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
-        private class WindowInfo
+    private class WindowInfo
         {
-     public IntPtr Handle { get; set; }
-            public string Title { get; set; } = string.Empty;
-    public Icon? Icon { get; set; }
+ public IntPtr Handle { get; set; }
+          public string Title { get; set; } = string.Empty;
+            public Icon? Icon { get; set; }
             public uint ProcessId { get; set; }
+            public Guid? DesktopId { get; set; }  // Track which desktop the window is on
         }
 
         /// <summary>
-        /// Populates the menu with running applications
-   /// </summary>
+     /// Populates the menu with running applications, grouped by virtual desktop
+        /// </summary>
         public static void PopulateAppMenu(ContextMenuStrip menu)
-        {
- // Clear existing items
-         menu.Items.Clear();
+ {
+            // Clear existing items
+   menu.Items.Clear();
 
             // Get styling configuration
-            var styling = ConfigLoader.GetStylingConfig();
-          
-            // Apply font to menu if configured
-if (styling != null && !string.IsNullOrWhiteSpace(styling.FontName))
-        {
-        try
-           {
-     menu.Font = new Font(styling.FontName, styling.FontSize);
-      }
-     catch
- {
-          // If font fails to load, keep default font
-    }
-}
-
-            // Enumerate all windows
-  var windows = new List<WindowInfo>();
-       EnumWindows((hWnd, lParam) =>
-            {
-                if (IsMainWindow(hWnd))
-           {
-  var window = GetWindowInfo(hWnd);
-       if (window != null && !string.IsNullOrWhiteSpace(window.Title))
-            {
-                 windows.Add(window);
-          }
-    }
-                return true;
-   }, IntPtr.Zero);
-
-            // Sort windows by title
-       windows = windows.OrderBy(w => w.Title).ToList();
-
-            // Create menu items
-        foreach (var window in windows)
-      {
-  var menuItem = new ToolStripMenuItem(window.Title);
-
-   // Set icon if available
-       if (window.Icon != null)
-  {
-            try
+   var styling = ConfigLoader.GetStylingConfig();
+ 
+          // Apply font to menu if configured
+   if (styling != null && !string.IsNullOrWhiteSpace(styling.FontName))
+{
+         try
    {
-       menuItem.Image = window.Icon.ToBitmap();
+       menu.Font = new Font(styling.FontName, styling.FontSize);
+        }
+      catch
+        {
+    // If font fails to load, keep default font
+  }
+      }
+
+     // Enumerate all windows
+            var windows = new List<WindowInfo>();
+EnumWindows((hWnd, lParam) =>
+   {
+     if (IsMainWindow(hWnd))
+{
+               var window = GetWindowInfo(hWnd);
+          if (window != null && !string.IsNullOrWhiteSpace(window.Title))
+            {
+    windows.Add(window);
+           }
+        }
+                return true;
+      }, IntPtr.Zero);
+
+            // Get all desktops for ordering
+     var allDesktops = VirtualDesktop.GetDesktops();
+            var currentDesktop = VirtualDesktop.Current;
+
+          // Group windows by desktop
+   var windowsByDesktop = windows
+   .GroupBy(w => w.DesktopId)
+              .OrderBy(g =>
+     {
+      // Put current desktop first
+        if (g.Key == currentDesktop?.Id) return 0;
+        
+           // Then order by desktop index
+          var desktopIndex = Array.FindIndex(allDesktops, d => d.Id == g.Key);
+      return desktopIndex >= 0 ? desktopIndex + 1 : int.MaxValue;
+    })
+     .ToList();
+
+            // Create menu items grouped by desktop
+            bool firstGroup = true;
+            foreach (var desktopGroup in windowsByDesktop)
+     {
+       // Add separator between desktop groups (except before first group)
+       if (!firstGroup)
+          {
+       menu.Items.Add(new ToolStripSeparator());
+      }
+  firstGroup = false;
+
+         // Find desktop name
+     string desktopName = "Unknown Desktop";
+         var desktop = allDesktops.FirstOrDefault(d => d.Id == desktopGroup.Key);
+                if (desktop != null)
+          {
+           desktopName = string.IsNullOrWhiteSpace(desktop.Name) 
+          ? $"Desktop {Array.IndexOf(allDesktops, desktop) + 1}" 
+             : desktop.Name;
+     
+         // Mark current desktop
+          if (desktop.Id == currentDesktop?.Id)
+   {
+        desktopName = $"? {desktopName}";  // Current desktop indicator
     }
- catch
-  {
-       // Ignore icon errors
-            }
-            }
+           }
+
+          // Add desktop header (non-clickable)
+                var header = new ToolStripMenuItem(desktopName)
+                {
+ Enabled = false,
+   Font = new Font(menu.Font, FontStyle.Bold)
+                };
+         menu.Items.Add(header);
+
+      // Sort windows within this desktop by title
+var sortedWindows = desktopGroup.OrderBy(w => w.Title).ToList();
+
+        // Add windows for this desktop
+        foreach (var window in sortedWindows)
+            {
+        var menuItem = new ToolStripMenuItem("  " + window.Title);  // Indent with spaces
+
+        // Set icon if available
+      if (window.Icon != null)
+     {
+         try
+ {
+              menuItem.Image = window.Icon.ToBitmap();
+        }
+          catch
+     {
+    // Ignore icon errors
+       }
+             }
 
  // Store window handle in Tag
-         menuItem.Tag = window.Handle;
+      menuItem.Tag = window.Handle;
 
-                // Add click handler
-          menuItem.Click += (s, e) =>
-         {
-    if (s is ToolStripMenuItem item && item.Tag is IntPtr handle)
+            // Add click handler
+              menuItem.Click += (s, e) =>
+{
+               if (s is ToolStripMenuItem item && item.Tag is IntPtr handle)
         {
-      ActivateWindow(handle);
-         }
-    };
-
-           menu.Items.Add(menuItem);
-  }
-
-    System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Populated menu with {windows.Count} applications");
+           ActivateWindow(handle);
         }
+      };
 
-   /// <summary>
-        /// Determines if a window is a main application window
-      /// </summary>
-        private static bool IsMainWindow(IntPtr hWnd)
-        {
-            // Must be visible
-            if (!IsWindowVisible(hWnd))
-         return false;
+  menu.Items.Add(menuItem);
+  }
+            }
 
-   // Must not be a tool window
-       int exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
-            if ((exStyle & WS_EX_TOOLWINDOW) != 0)
-         return false;
-
-        // Must not have an owner
-          IntPtr owner = GetWindow(hWnd, GW_OWNER);
-     if (owner != IntPtr.Zero)
-                return false;
-
-            // Must have a title
-        int length = GetWindowTextLength(hWnd);
-   if (length == 0)
-return false;
-
-            return true;
+            System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Populated menu with {windows.Count} applications across {windowsByDesktop.Count} desktops");
         }
 
         /// <summary>
-     /// Gets window information including title and icon
+/// Determines if a window is a main application window
+/// </summary>
+private static bool IsMainWindow(IntPtr hWnd)
+{
+    // Must be visible
+    if (!IsWindowVisible(hWnd))
+        return false;
+
+    // Must not be a tool window
+    int exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
+    if ((exStyle & WS_EX_TOOLWINDOW) != 0)
+        return false;
+
+    // Must not have an owner
+    IntPtr owner = GetWindow(hWnd, GW_OWNER);
+    if (owner != IntPtr.Zero)
+        return false;
+
+    // Must have a title
+    int length = GetWindowTextLength(hWnd);
+    if (length == 0)
+        return false;
+
+    // Filter out FlyMenu itself and Windows system apps
+    try
+    {
+        GetWindowThreadProcessId(hWnd, out uint processId);
+        var process = Process.GetProcessById((int)processId);
+    string? processName = process.ProcessName?.ToLowerInvariant();
+     
+  // Exclude FlyMenu itself
+        if (processName == "flymenu")
+            return false;
+        
+   // Exclude Windows system apps (all lowercase for comparison)
+        if (processName is "textinputhost" or      // Windows-Eingabeerfahrung
+                 "searchhost" or           // Windows Search
+             "shellexperiencehost" or  // Start Menu, Action Center
+                    "applicationframehost" or // UWP container
+      "systemsettings")      // Windows Settings (fixed: lowercase)
+        {
+            return false;
+        }
+    }
+    catch
+    {
+    // If we can't get process info, ignore the error and continue
+    }
+
+    return true;
+}
+
+        /// <summary>
+     /// Gets window information including title, icon, and desktop
     /// </summary>
         private static WindowInfo? GetWindowInfo(IntPtr hWnd)
         {
@@ -184,48 +266,62 @@ return false;
       // Get process ID
   GetWindowThreadProcessId(hWnd, out uint processId);
 
-                // Get window icon
-         Icon? icon = null;
-           try
-     {
-    // Try to get icon from window
-      IntPtr iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL2, IntPtr.Zero);
-     if (iconHandle == IntPtr.Zero)
+                // Get desktop ID
+   Guid? desktopId = null;
+                try
+  {
+        var desktop = VirtualDesktop.FromHwnd(hWnd);
+desktopId = desktop?.Id;
+ }
+     catch
+         {
+     // If we can't get desktop, window might be on all desktops or there's an error
+  System.Diagnostics.Debug.WriteLine($"Could not get desktop for window: {title}");
+                }
+
+        // Get window icon
+        Icon? icon = null;
+       try
+          {
+// Try to get icon from window
+              IntPtr iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL2, IntPtr.Zero);
+            if (iconHandle == IntPtr.Zero)
           iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL, IntPtr.Zero);
-        if (iconHandle == IntPtr.Zero)
-  iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero);
+  if (iconHandle == IntPtr.Zero)
+         iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero);
 
-   if (iconHandle != IntPtr.Zero)
-    {
+       if (iconHandle != IntPtr.Zero)
+          {
    icon = Icon.FromHandle(iconHandle);
-                    }
-          else
-           {
-        // Try to get icon from process
-  var process = Process.GetProcessById((int)processId);
- if (!string.IsNullOrEmpty(process.MainModule?.FileName))
- {
-           icon = Icon.ExtractAssociatedIcon(process.MainModule.FileName);
-      }
-     }
   }
-          catch
-     {
-      // Ignore icon extraction errors
-    }
-
-          return new WindowInfo
-      {
-   Handle = hWnd,
-         Title = title.ToString(),
-                    Icon = icon,
-     ProcessId = processId
-       };
-            }
-   catch
+ else
             {
-           return null;
-          }
+       // Try to get icon from process
+             var process = Process.GetProcessById((int)processId);
+         if (!string.IsNullOrEmpty(process.MainModule?.FileName))
+             {
+              icon = Icon.ExtractAssociatedIcon(process.MainModule.FileName);
+  }
+                    }
+              }
+     catch
+         {
+ // Ignore icon extraction errors
+         }
+
+    return new WindowInfo
+       {
+  Handle = hWnd,
+           Title = title.ToString(),
+       Icon = icon,
+            ProcessId = processId,
+   DesktopId = desktopId
+            };
+   }
+            catch
+         {
+      return null;
+  }
         }
 
         /// <summary>
