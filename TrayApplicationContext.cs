@@ -136,6 +136,11 @@ namespace FlyMenu
                 // Populate app menu
                 AppMenuBuilder.PopulateAppMenu(appMenu);
 
+                // CRITICAL FIX: Disable AutoClose temporarily to prevent Windows Forms from
+                // automatically closing flyoutMenu when appMenu.Show() is called
+                flyoutMenu.AutoClose = false;
+                appMenu.AutoClose = false;
+
                 // Show flyout menu first to get its width
                 MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
 
@@ -175,11 +180,11 @@ namespace FlyMenu
             var screen = Screen.FromPoint(cursor);
             var hotArea = ConfigLoader.GetHotAreaConfig();
 
+            // Calculate if cursor is in hot area
+            bool isInHotArea = IsInHotArea(cursor, screen, hotArea);
+
             // Update continuous mouse catching if enabled
             MenuUIHelper.UpdateMouseCatch();
-
-            // Calculate bounds based on configured edge and percentages
-            bool isInHotArea = IsInHotArea(cursor, screen, hotArea);
 
             // Show when cursor is in hot area
             if (isInHotArea)
@@ -189,10 +194,12 @@ namespace FlyMenu
                     ShowMenus(cursor, screen, GetMenuYPosition(screen, hotArea), hotArea);
                 }
 
+                // Don't check bounds - we're in the hot area, keep menus open
                 return;
             }
 
             // Hide menus if visible and cursor moves away from them
+            // BUT only if cursor is NOT in the hot area
             // Combine bounds if both menus are visible
             if (flyoutMenu.Visible || appMenu.Visible)
             {
@@ -215,6 +222,10 @@ namespace FlyMenu
                 }
 
                 var padded = Rectangle.Inflate(combinedBounds, 8, 8);
+
+                // Only close if:
+                // 1. Cursor is outside padded bounds
+                // 2. AND cursor is NOT in hot area (already checked above)
                 if (!padded.Contains(cursor))
                 {
                     MenuUIHelper.DisableMouseCatch();
