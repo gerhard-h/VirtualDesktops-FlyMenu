@@ -133,6 +133,15 @@ namespace FlyMenu
         }
 
         /// <summary>
+        /// Gets whether to show the app menu
+        /// </summary>
+        public static bool GetShowAppMenu()
+        {
+            var config = LoadConfig();
+            return config.ShowAppMenu;
+        }
+
+        /// <summary>
         /// Returns a default configuration with standard settings
         /// </summary>
         private static FlyMenuConfig GetDefaultConfig()
@@ -150,6 +159,7 @@ namespace FlyMenu
                     FontName = "Segoe UI",
                     FontSize = 9
                 },
+                ShowAppMenu = false,
                 MenuItems = new List<MenuItemConfig>()
             };
         }

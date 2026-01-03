@@ -12,6 +12,9 @@ namespace FlyMenu
         [JsonPropertyName("styling")]
         public StylingConfig? Styling { get; set; }
 
+        [JsonPropertyName("showAppMenu")]
+        public bool ShowAppMenu { get; set; } = false;
+
         [JsonPropertyName("menuItems")]
         public List<MenuItemConfig>? MenuItems { get; set; }
     }

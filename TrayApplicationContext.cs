@@ -16,6 +16,7 @@ namespace FlyMenu
         private readonly NotifyIcon notifyIcon;
         private readonly ContextMenuStrip trayMenu;
         private readonly ContextMenuStrip flyoutMenu;
+        private readonly ContextMenuStrip appMenu;  // New: App menu
         private System.Windows.Forms.Timer pollTimer = null!;
         private MessageWindow? messageWindow;
         private readonly int uiThreadId;
@@ -25,6 +26,7 @@ namespace FlyMenu
         public NotifyIcon NotifyIcon => notifyIcon;
         public ContextMenuStrip TrayMenu => trayMenu;
         public ContextMenuStrip FlyoutMenu => flyoutMenu;
+        public ContextMenuStrip AppMenu => appMenu;  // New: Expose app menu
         public System.Windows.Forms.Timer PollTimer { get => pollTimer; set => pollTimer = value; }
 
         public TrayApplicationContext()
@@ -58,6 +60,10 @@ namespace FlyMenu
             // Create the flyout menu container (items will be populated on demand)
             flyoutMenu = new ContextMenuStrip();
             flyoutMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
+
+            // Create the app menu container (items will be populated on demand)
+            appMenu = new ContextMenuStrip();
+            appMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
 
             // Subscribe to VirtualDesktop changes
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Subscribing to VirtualDesktop.CurrentChanged...");
@@ -110,8 +116,43 @@ namespace FlyMenu
                 var cursor = Cursor.Position;
                 var screen = Screen.FromPoint(cursor);
                 var hotArea = ConfigLoader.GetHotAreaConfig();
-                PopulateMenuFromConfig();
-                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, cursor.Y, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+                ShowMenus(cursor, screen, cursor.Y, hotArea);
+            }
+        }
+
+        /// <summary>
+        /// Shows both the flyout menu and app menu (if enabled) side by side with zero gap
+        /// </summary>
+        private void ShowMenus(Point cursor, Screen screen, int yPosition, HotAreaConfig hotArea)
+        {
+            // Populate desktop menu
+            PopulateMenuFromConfig();
+
+            // Check if app menu should be shown
+            bool showAppMenu = ConfigLoader.GetShowAppMenu();
+
+            if (showAppMenu)
+            {
+                // Populate app menu
+                AppMenuBuilder.PopulateAppMenu(appMenu);
+
+                // Show flyout menu first to get its width
+                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+
+                // Calculate position for app menu (directly adjacent, zero gap)
+                var flyoutBounds = flyoutMenu.Bounds;
+                int appMenuX = flyoutBounds.Right;  // Zero gap - place right edge of flyout to left edge of app menu
+                int appMenuY = flyoutBounds.Top;
+
+                // Show app menu at calculated position
+                appMenu.Show(appMenuX, appMenuY);
+
+                System.Diagnostics.Debug.WriteLine($"ShowMenus: Flyout at ({flyoutBounds.X}, {flyoutBounds.Y}), App at ({appMenuX}, {appMenuY})");
+            }
+            else
+            {
+                // Show only flyout menu
+                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
             }
         }
 
@@ -145,22 +186,40 @@ namespace FlyMenu
             {
                 if (!flyoutMenu.Visible)
                 {
-                    PopulateMenuFromConfig();
-                    MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, GetMenuYPosition(screen, hotArea), hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+                    ShowMenus(cursor, screen, GetMenuYPosition(screen, hotArea), hotArea);
                 }
 
                 return;
             }
 
-            // Hide menu if visible and cursor moves away from it
-            if (flyoutMenu.Visible)
+            // Hide menus if visible and cursor moves away from them
+            // Combine bounds if both menus are visible
+            if (flyoutMenu.Visible || appMenu.Visible)
             {
-                var bounds = flyoutMenu.Bounds;
-                var padded = Rectangle.Inflate(bounds, 8, 8);
+                Rectangle combinedBounds;
+
+                if (flyoutMenu.Visible && appMenu.Visible)
+                {
+                    // Both menus visible - union their bounds
+                    combinedBounds = Rectangle.Union(flyoutMenu.Bounds, appMenu.Bounds);
+                }
+                else if (flyoutMenu.Visible)
+                {
+                    // Only flyout menu visible
+                    combinedBounds = flyoutMenu.Bounds;
+                }
+                else
+                {
+                    // Only app menu visible (shouldn't happen, but handle it)
+                    combinedBounds = appMenu.Bounds;
+                }
+
+                var padded = Rectangle.Inflate(combinedBounds, 8, 8);
                 if (!padded.Contains(cursor))
                 {
                     MenuUIHelper.DisableMouseCatch();
                     flyoutMenu.Close();
+                    appMenu.Close();
                 }
             }
         }
@@ -315,8 +374,7 @@ namespace FlyMenu
                         var cursor = Cursor.Position;
                         var screen = Screen.FromPoint(cursor);
                         var hotArea = ConfigLoader.GetHotAreaConfig();
-                        PopulateMenuFromConfig();
-                        MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, cursor.Y, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+                        ShowMenus(cursor, screen, cursor.Y, hotArea);
                     };
                     deferTimer.Start();
                     return;
@@ -426,6 +484,7 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
             NotifyIcon.Dispose();
             TrayMenu.Dispose();
             flyoutMenu.Dispose();
+            appMenu.Dispose();  // Clean up app menu
 
             Application.Exit();
         }
@@ -476,10 +535,12 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
                 NotifyIcon?.Dispose();
                 TrayMenu?.Dispose();
                 flyoutMenu?.Dispose();
-            }
+appMenu?.Dispose();  // Clean up app menu
+}
 
-            base.Dispose(disposing);
+   base.Dispose(disposing);
         }
+
     }
 
     /// <summary>
