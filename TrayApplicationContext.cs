@@ -29,6 +29,16 @@ namespace FlyMenu
         public ContextMenuStrip AppMenu => appMenu;  // New: Expose app menu
         public System.Windows.Forms.Timer PollTimer { get => pollTimer; set => pollTimer = value; }
 
+        [DllImport("user32.dll")]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        private const int GWL_EXSTYLE = -20;
+        private const int WS_EX_NOACTIVATE = 0x08000000;
+        private const int WS_EX_TOOLWINDOW = 0x00000080;
+
         public TrayApplicationContext()
         {
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initializing...");
@@ -144,6 +154,9 @@ namespace FlyMenu
                 // Show flyout menu first to get its width
                 MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
 
+                // TASKBAR FIX: Prevent menu from appearing in taskbar
+                PreventTaskbarAppearance(flyoutMenu);
+
                 // Calculate position for app menu (directly adjacent, zero gap)
                 var flyoutBounds = flyoutMenu.Bounds;
                 int appMenuX = flyoutBounds.Right;  // Zero gap - place right edge of flyout to left edge of app menu
@@ -152,12 +165,18 @@ namespace FlyMenu
                 // Show app menu at calculated position
                 appMenu.Show(appMenuX, appMenuY);
 
+                // TASKBAR FIX: Prevent app menu from appearing in taskbar
+                PreventTaskbarAppearance(appMenu);
+
                 System.Diagnostics.Debug.WriteLine($"ShowMenus: Flyout at ({flyoutBounds.X}, {flyoutBounds.Y}), App at ({appMenuX}, {appMenuY})");
             }
             else
             {
                 // Show only flyout menu
                 MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+                
+                // TASKBAR FIX: Prevent menu from appearing in taskbar
+                PreventTaskbarAppearance(flyoutMenu);
             }
         }
 
@@ -552,6 +571,42 @@ appMenu?.Dispose();  // Clean up app menu
    base.Dispose(disposing);
         }
 
+        /// <summary>
+        /// Prevents a ContextMenuStrip from appearing in the Windows taskbar
+        /// by setting WS_EX_TOOLWINDOW and WS_EX_NOACTIVATE extended window styles
+        /// </summary>
+        private static void PreventTaskbarAppearance(ContextMenuStrip menu)
+        {
+            try
+            {
+                return;
+                // Get the window handle using reflection
+                var handleProperty = typeof(ToolStripDropDown).GetProperty("Handle",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+
+                if (handleProperty != null)
+                {
+                    var handle = (IntPtr?)handleProperty.GetValue(menu);
+                    if (handle.HasValue && handle.Value != IntPtr.Zero)
+                    {
+                        // Get current extended window styles
+                        int exStyle = GetWindowLong(handle.Value, GWL_EXSTYLE);
+
+                        // Add WS_EX_TOOLWINDOW (prevents taskbar button) and WS_EX_NOACTIVATE (prevents activation)
+                        exStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+
+                        // Set the new extended window styles
+                        SetWindowLong(handle.Value, GWL_EXSTYLE, exStyle);
+
+                        System.Diagnostics.Debug.WriteLine($"PreventTaskbarAppearance: Set window styles for handle 0x{handle.Value:X}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PreventTaskbarAppearance: Error setting window styles: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>

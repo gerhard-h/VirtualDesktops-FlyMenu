@@ -1,0 +1,239 @@
+.cs
+using System.Diagnostics;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+using WindowsDesktop;  // Add this import
+
+namespace FlyMenu
+{
+    /// <summary>
+    /// Builds a menu of running applications with icons
+    /// </summary>
+    internal static class AppMenuBuilder
+    {
+        // ... existing P/Invoke declarations ...
+
+        private class WindowInfo
+        {
+            public IntPtr Handle { get; set; }
+            public string Title { get; set; } = string.Empty;
+            public Icon? Icon { get; set; }
+            public uint ProcessId { get; set; }
+            public Guid? DesktopId { get; set; }  // ADD THIS - Track which desktop the window is on
+        }
+
+        /// <summary>
+        /// Populates the menu with running applications, grouped by virtual desktop
+        /// </summary>
+        public static void PopulateAppMenu(ContextMenuStrip menu)
+        {
+            // Clear existing items
+            menu.Items.Clear();
+
+            // Get styling configuration
+            var styling = ConfigLoader.GetStylingConfig();
+            
+            // Apply font to menu if configured
+            if (styling != null && !string.IsNullOrWhiteSpace(styling.FontName))
+            {
+                try
+                {
+                    menu.Font = new Font(styling.FontName, styling.FontSize);
+                }
+                catch
+                {
+                    // If font fails to load, keep default font
+                }
+            }
+
+            // Enumerate all windows
+            var windows = new List<WindowInfo>();
+            EnumWindows((hWnd, lParam) =>
+            {
+                if (IsMainWindow(hWnd))
+                {
+                    var window = GetWindowInfo(hWnd);
+                    if (window != null && !string.IsNullOrWhiteSpace(window.Title))
+                    {
+                        windows.Add(window);
+                    }
+                }
+                return true;
+            }, IntPtr.Zero);
+
+            // Get all desktops for ordering
+            var allDesktops = VirtualDesktop.GetDesktops();
+            var currentDesktop = VirtualDesktop.Current;
+
+            // Group windows by desktop
+            var windowsByDesktop = windows
+                .GroupBy(w => w.DesktopId)
+                .OrderBy(g =>
+                {
+                    // Put current desktop first
+                    if (g.Key == currentDesktop?.Id) return 0;
+                    
+                    // Then order by desktop index
+                    var desktopIndex = Array.FindIndex(allDesktops, d => d.Id == g.Key);
+                    return desktopIndex >= 0 ? desktopIndex + 1 : int.MaxValue;
+                })
+                .ToList();
+
+            // Create menu items grouped by desktop
+            bool firstGroup = true;
+            foreach (var desktopGroup in windowsByDesktop)
+            {
+                // Add separator between desktop groups (except before first group)
+                if (!firstGroup)
+                {
+                    menu.Items.Add(new ToolStripSeparator());
+                }
+                firstGroup = false;
+
+                // Find desktop name
+                string desktopName = "Unknown Desktop";
+                var desktop = allDesktops.FirstOrDefault(d => d.Id == desktopGroup.Key);
+                if (desktop != null)
+                {
+                    desktopName = string.IsNullOrWhiteSpace(desktop.Name) 
+                        ? $"Desktop {Array.IndexOf(allDesktops, desktop) + 1}" 
+                        : desktop.Name;
+                    
+                    // Mark current desktop
+                    if (desktop.Id == currentDesktop?.Id)
+                    {
+                        desktopName = $"? {desktopName}";  // Current desktop indicator
+                    }
+                }
+
+                // Add desktop header (non-clickable)
+                var header = new ToolStripMenuItem(desktopName)
+                {
+                    Enabled = false,
+                    Font = new Font(menu.Font, FontStyle.Bold)
+                };
+                menu.Items.Add(header);
+
+                // Sort windows within this desktop by title
+                var sortedWindows = desktopGroup.OrderBy(w => w.Title).ToList();
+
+                // Add windows for this desktop
+                foreach (var window in sortedWindows)
+                {
+                    var menuItem = new ToolStripMenuItem("  " + window.Title);  // Indent with spaces
+
+                    // Set icon if available
+                    if (window.Icon != null)
+                    {
+                        try
+                        {
+                            menuItem.Image = window.Icon.ToBitmap();
+                        }
+                        catch
+                        {
+                            // Ignore icon errors
+                        }
+                    }
+
+                    // Store window handle in Tag
+                    menuItem.Tag = window.Handle;
+
+                    // Add click handler
+                    menuItem.Click += (s, e) =>
+                    {
+                        if (s is ToolStripMenuItem item && item.Tag is IntPtr handle)
+                        {
+                            ActivateWindow(handle);
+                        }
+                    };
+
+                    menu.Items.Add(menuItem);
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Populated menu with {windows.Count} applications across {windowsByDesktop.Count} desktops");
+        }
+
+        // ... existing IsMainWindow method ...
+
+        /// <summary>
+        /// Gets window information including title, icon, and desktop
+        /// </summary>
+        private static WindowInfo? GetWindowInfo(IntPtr hWnd)
+        {
+            try
+            {
+                // Get window title
+                int length = GetWindowTextLength(hWnd);
+                if (length == 0)
+                    return null;
+
+                var title = new StringBuilder(length + 1);
+                GetWindowText(hWnd, title, title.Capacity);
+
+                // Get process ID
+                GetWindowThreadProcessId(hWnd, out uint processId);
+
+                // Get desktop ID
+                Guid? desktopId = null;
+                try
+                {
+                    var desktop = VirtualDesktop.FromHwnd(hWnd);
+                    desktopId = desktop?.Id;
+                }
+                catch
+                {
+                    // If we can't get desktop, window might be on all desktops or there's an error
+                    System.Diagnostics.Debug.WriteLine($"Could not get desktop for window: {title}");
+                }
+
+                // Get window icon
+                Icon? icon = null;
+                try
+                {
+                    // Try to get icon from window
+                    IntPtr iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL2, IntPtr.Zero);
+                    if (iconHandle == IntPtr.Zero)
+                        iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL, IntPtr.Zero);
+                    if (iconHandle == IntPtr.Zero)
+                        iconHandle = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero);
+
+                    if (iconHandle != IntPtr.Zero)
+                    {
+                        icon = Icon.FromHandle(iconHandle);
+                    }
+                    else
+                    {
+                        // Try to get icon from process
+                        var process = Process.GetProcessById((int)processId);
+                        if (!string.IsNullOrEmpty(process.MainModule?.FileName))
+                        {
+                            icon = Icon.ExtractAssociatedIcon(process.MainModule.FileName);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore icon extraction errors
+                }
+
+                return new WindowInfo
+                {
+                    Handle = hWnd,
+                    Title = title.ToString(),
+                    Icon = icon,
+                    ProcessId = processId,
+                    DesktopId = desktopId
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        // ... existing ActivateWindow method ...
+    }
+}
