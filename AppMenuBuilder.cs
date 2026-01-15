@@ -41,14 +41,31 @@ namespace FlyMenu
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
         [DllImport("user32.dll")]
- private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-     private const int GWL_EXSTYLE = -20;
-  private const int WS_EX_TOOLWINDOW = 0x00000080;
-        private const uint GW_OWNER = 4;
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
+    [StructLayout(LayoutKind.Sequential)]
+        private struct WINDOWPLACEMENT
+     {
+  public int length;
+       public int flags;
+            public int showCmd;
+          public System.Drawing.Point ptMinPosition;
+         public System.Drawing.Point ptMaxPosition;
+    public System.Drawing.Rectangle rcNormalPosition;
+    }
+
+        private const int GWL_EXSTYLE = -20;
+        private const int WS_EX_TOOLWINDOW = 0x00000080;
+   private const uint GW_OWNER = 4;
         private const int SW_RESTORE = 9;
-    private const uint WM_GETICON = 0x007F;
- private const uint ICON_SMALL = 0;
+        private const int SW_SHOW = 5;
+        private const int SW_SHOWMAXIMIZED = 3;
+        private const int SW_SHOWMINIMIZED = 2;
+   private const uint WM_GETICON = 0x007F;
+        private const uint ICON_SMALL = 0;
         private const uint ICON_BIG = 1;
         private const uint ICON_SMALL2 = 2;
 
@@ -325,27 +342,47 @@ desktopId = desktop?.Id;
         }
 
         /// <summary>
-      /// Activates and brings a window to the foreground
+      /// Activates and brings a window to the foreground, preserving its maximized state
         /// </summary>
         private static void ActivateWindow(IntPtr hWnd)
-  {
-    try
+        {
+  try
+{
+     System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Activating window 0x{hWnd:X}");
+
+      // Get window placement to check current and restore state
+         WINDOWPLACEMENT placement = new WINDOWPLACEMENT();
+     placement.length = Marshal.SizeOf(placement);
+      GetWindowPlacement(hWnd, ref placement);
+
+        System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Window showCmd = {placement.showCmd}");
+
+// Check if window is currently minimized (showCmd == SW_SHOWMINIMIZED or similar)
+             if (placement.showCmd == SW_SHOWMINIMIZED || placement.showCmd == 2)
             {
-    System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Activating window 0x{hWnd:X}");
+ // Window is minimized - restore it
+     // SW_RESTORE will restore to whatever state it was before (normal or maximized)
+  ShowWindow(hWnd, SW_RESTORE);
+         System.Diagnostics.Debug.WriteLine("AppMenuBuilder: Restored minimized window");
+     }
+   else
+      {
+      // Window is not minimized - just activate it without changing state
+       // This preserves maximized state
+        ShowWindow(hWnd, SW_SHOW);
+       System.Diagnostics.Debug.WriteLine("AppMenuBuilder: Showed window (preserved state)");
+            }
 
-       // Restore if minimized
-     ShowWindow(hWnd, SW_RESTORE);
+           // Bring to foreground
+          SetForegroundWindow(hWnd);
 
-         // Bring to foreground
-       SetForegroundWindow(hWnd);
-
-            System.Diagnostics.Debug.WriteLine("AppMenuBuilder: Window activated successfully");
- }
-            catch (Exception ex)
-            {
-         System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Error activating window: {ex.Message}");
-   MessageBox.Show($"Failed to activate window: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-      }
+      System.Diagnostics.Debug.WriteLine("AppMenuBuilder: Window activated successfully");
    }
+       catch (Exception ex)
+            {
+       System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Error activating window: {ex.Message}");
+        MessageBox.Show($"Failed to activate window: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+        }
     }
 }
