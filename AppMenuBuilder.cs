@@ -196,17 +196,21 @@ var sortedWindows = desktopGroup.OrderBy(w => w.Title).ToList();
  // Store window handle in Tag
       menuItem.Tag = window.Handle;
 
-            // Add click handler
-              menuItem.Click += (s, e) =>
-{
-               if (s is ToolStripMenuItem item && item.Tag is IntPtr handle)
-        {
-           ActivateWindow(handle);
-        }
-      };
+            // Add click handler - close menus first, then activate window
+        menuItem.Click += (s, e) =>
+      {
+   // Close all menus first
+  MenuActionHandler.CloseMenus();
+       
+     // Then activate the window
+              if (s is ToolStripMenuItem item && item.Tag is IntPtr handle)
+           {
+        ActivateWindow(handle);
+      }
+         };
 
-  menu.Items.Add(menuItem);
-  }
+           menu.Items.Add(menuItem);
+     }
             }
 
             System.Diagnostics.Debug.WriteLine($"AppMenuBuilder: Populated menu with {windows.Count} applications across {windowsByDesktop.Count} desktops");

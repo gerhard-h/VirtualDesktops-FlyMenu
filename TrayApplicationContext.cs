@@ -75,6 +75,9 @@ namespace FlyMenu
             appMenu = new ContextMenuStrip();
             appMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
 
+            // Set menu references in MenuActionHandler so actions can close menus
+            MenuActionHandler.SetMenuReferences(flyoutMenu, appMenu);
+
             // Subscribe to VirtualDesktop changes
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Subscribing to VirtualDesktop.CurrentChanged...");
             VirtualDesktop.CurrentChanged += OnVirtualDesktopCurrentChanged;
