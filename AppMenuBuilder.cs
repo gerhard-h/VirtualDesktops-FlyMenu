@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -160,7 +160,7 @@ EnumWindows((hWnd, lParam) =>
          // Mark current desktop
           if (desktop.Id == currentDesktop?.Id)
    {
-        desktopName = $"? {desktopName}";  // Current desktop indicator
+        desktopName = $"● {desktopName}";  // Current desktop indicator
     }
            }
 
