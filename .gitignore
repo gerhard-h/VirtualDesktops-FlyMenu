@@ -5,3 +5,7 @@
 /*.user
 /Properties/PublishProfiles/*.user
 /bin
+/FlyCtl/.vs
+/FlyCtl/FlyCtl.csproj.user
+/FlyCtl/bin
+/FlyCtl/obj
