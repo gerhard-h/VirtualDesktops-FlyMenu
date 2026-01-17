@@ -1,73 +1,41 @@
 ﻿# VirtualDesktops-FlyMenu
 
-A customizable fly-out menu triggered by (parts) of the screen edges or hotkey
+A customizable fly-out menu triggered by (parts) of the screen edges or by hotkey or by contol program.
 
-This is a more conceized,faster alternative to Windows WIN+TAB functionality, for switching desktops.
+This is a more conceized and faster alternative to Windows WIN+TAB functionality, for switching desktops and applications.
 It also works while in full-screen remote desktop sessions.
-It can also or exclusivly be used as a launchpad for programs or to execute keyboard shortcuts.
+It also offers a launchpad for programs and for executing keyboard shortcuts.
 
-## 🚀 External Control with FlyCtl
 
-**NEW**: FlyCtl is a high-performance command-line tool for controlling FlyMenu from external applications.
+**NEW**: FlyCtl is now a high-performance command-line tool for controlling FlyMenu from external applications.
+(FlyMenu.exe is running in the background to offer fast Desktop switching )
 
 ### Performance Comparison
 - **FlyCtl.exe**: ~5-10ms ⚡ (Recommended)
 - **flyctl.ps1** (PowerShell): ~30-50ms
 - **flyctl.ahk** (AutoHotkey): ~50-100ms
 
-### Usage Examples
-
-```cmd
-# Show menu at cursor position (bind this to mouse gestures!)
-FlyCtl.exe show
-
-# Switch desktops
-FlyCtl.exe "Next Desktop"
-FlyCtl.exe "Prev Desktop"
-
-# Execute any menu action
-FlyCtl.exe "Desktop"
-
-# Reload configuration
-FlyCtl.exe reload
-```
-
-See [FlyCtl/README.md](FlyCtl/README.md) for full documentation.
-
 ## Shortcut / Taskbar / .lnk File support
 With the included `FlyCtl.exe` or legacy `flyctl.ahk` script you can create shortcuts
 to desktop actions (or any other actions) on the taskbar.
-
 **Recommended**: `FlyCtl.exe "Desktop 2"` (fast)  
 **Legacy**: `autohotkey flyctl.ahk "Desktop 2"` (slower)
 
-## Hotkey (inbound) support
-Bind `FlyCtl.exe show` to any mouse key or gesture as an alternative activation method 
-to screen edge trigger. This is **10-20x faster** than AutoHotkey.
+## activation per mouse button 
+Bind `FlyCtl.exe show` or just `FlyCtl.exe` to any mouse button or gesture as an alternative activation method 
+to screen edge triggers. If your mouse can not run executables, create a link/shortcut to flyctl and define a keyboard shortcut to that .lnk. But keep in mind the FlyMenu itself does not support keyboard input. 
 
-## flyctl Tools
-Three options available (choose one):
 
-1. **FlyCtl.exe** ⚡ - Fast C# command-line tool (recommended)
-   - Usage: `FlyCtl.exe show` or `FlyCtl.exe "Next Desktop"`
-   - Build: `cd FlyCtl && dotnet publish -c Release`
-
-2. **flyctl.ps1** - PowerShell script (medium speed, no build required)
-   - Usage: `pwsh -File flyctl.ps1 show`
-
-3. **flyctl.ahk** - AutoHotkey script (legacy, slower)
-   - Usage: `autohotkey flyctl.ahk show`
-
-All accept any menu label as parameter. Special commands: `start`, `stop`, `show`, `reload`, `quit`, `exit`
+`flyctl` accepts any menu label as parameter. Special commands: default=`show`, `reload`
 
 ```
-┌──────────┌────────────▼────────┐─────────────────────────────────────┐
-│      │ ▶ Latest Desktop    │
-│  │ ▶ Desktop 1  │  
-│    │ ▶ Desktop 2         │
-│        │ ▶ Desktop n         │
-│        ├─────────────────────┤       
-│          │ ▶ Next Desktop      │   
+┌──────────┌────────────▼────────┐┌──────────────┐──────────────────────┐
+│      │ ▶ Latest Desktop    ││ Dock Desktop 1
+│  │ ▶ Desktop 1  ││ app1   
+│    │ ▶ Desktop 2         ││ app2
+│        │ ▶ Desktop n         ││Dock Desktop 2
+│        ├─────────────────────┤│ app 3       
+│          │ ▶ Next Desktop      │└──────────────┘
 │          │ ▶ Show Desktop      │
 │     │ ▶ Screenshot        │
 │          │ ▶ Win+Tab           │      
@@ -87,10 +55,11 @@ All accept any menu label as parameter. Special commands: `start`, `stop`, `show
   - Switch to last used desktop
   - Switch desktop left/right with rollover
   - Direct access to all desktops by name
+- ** ALT-Tab like Dock sortable by name or last used
 - **🎯 Launch programs
 - **📍 Run keyboard shortcuts
 - **📍 Smart Positioning** - Menu appears centered under cursor with first menu item highlighted
-- **💾 JSON Configuration** - Easy-to-edit configuration with JSON comments support
+- **💾 JSON Configuration** - Easy-to-edit configuration
 - **🎨 Icon Support** - Custom icons for menu items
 - **⚡ Fast External Control** - FlyCtl.exe for sub-10ms response time
 
@@ -99,7 +68,13 @@ All accept any menu label as parameter. Special commands: `start`, `stop`, `show
 -  Windows 11 (2025-12-23 or newer)
 - .NET 8.0 Runtime (or newer) 
 - Virtual Desktop feature enabled
-- For mouse gestures: Use `FlyCtl.exe show` (10-20x faster than AutoHotkey)
+- For mouse gestures: Use `FlyCtl.exe show`
+
+## Motivation (why not uses AutoHotkey + VirtualDesktopAccessor.dll)
+AutoHotkey can do the same and Menus have keyboard support out of the box. 
+But since menus in AutoHotkey are modal they won't autoclose after loosing mouse focus 
+wich is essential if the menu is triggered by mouse near screen edge.
+
 
 ## 🚀 Installation
 
@@ -267,24 +242,6 @@ dotnet run
 - **[Slions.VirtualDesktop](https://www.nuget.org/packages/Slions.VirtualDesktop/)** - Virtual Desktop API wrapper
 - **[InputSimulatorStandard](https://www.nuget.org/packages/InputSimulatorStandard/)** - Keyboard input simulation
 
-### Project Structure
-
-```
-FlyMenu/
-├── FlyMenu.csproj       # Project file
-├── Program.cs  # Application entry point
-├── TrayApplicationContext.cs   # Main application logic
-├── ConfigLoader.cs             # Configuration loading
-├── HotAreaConfig.cs            # Configuration models
-├── MenuBuilder.cs              # Menu construction
-├── MenuUIHelper.cs        # UI helpers and positioning
-├── MenuActionHandler.cs        # Action execution
-├── KeyboardHelper.cs    # Keyboard shortcut handling
-├── GlobalHotKey.cs   # Global hotkey registration
-├── HotkeyMessageWindow.cs      # Hotkey message handling
-├── FlyMenu.config    # Configuration file
-└── icons/           # Icon directory
-```
 
 ## 🐛 Troubleshooting
 
