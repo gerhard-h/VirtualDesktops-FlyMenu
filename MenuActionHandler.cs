@@ -10,12 +10,45 @@ namespace FlyMenu
     /// </summary>
     internal static class MenuActionHandler
     {
+        // Store references to menus so we can close them before actions execute
+        private static ContextMenuStrip? flyoutMenu;
+        private static ContextMenuStrip? appMenu;
+
+        /// <summary>
+        /// Sets the menu references so they can be closed when actions execute
+        /// </summary>
+        public static void SetMenuReferences(ContextMenuStrip? flyout, ContextMenuStrip? app)
+        {
+            flyoutMenu = flyout;
+            appMenu = app;
+        }
+
+        /// <summary>
+        /// Closes all menus immediately
+        /// </summary>
+        public static void CloseMenus()
+        {
+            try
+            {
+                flyoutMenu?.Close();
+                appMenu?.Close();
+            }
+            catch
+            {
+                // Ignore errors closing menus
+            }
+        }
+
         /// <summary>
         /// Binds a click event to a menu item based on its configured type
         /// </summary>
         public static void BindActionToMenuItem(ToolStripMenuItem menuItem, MenuItemConfig config)
         {
-            menuItem.Click += (s, e) => ExecuteMenuAction(config);
+            menuItem.Click += (s, e) =>
+            {
+                CloseMenus();
+                ExecuteMenuAction(config);
+            };
         }
 
         /// <summary>
