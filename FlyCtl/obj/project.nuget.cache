@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "O2qBritX0MI=",
+  "success": true,
+  "projectFilePath": "C:\\path\\FlyMenu\\FlyCtl\\FlyCtl.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\heideg\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.23\\microsoft.net.illink.tasks.8.0.23.nupkg.sha512"
+  ],
+  "logs": []
+}

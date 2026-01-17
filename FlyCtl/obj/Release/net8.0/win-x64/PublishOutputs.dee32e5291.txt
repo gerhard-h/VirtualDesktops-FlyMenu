@@ -1,0 +1,2 @@
+C:\path\FlyMenu\publish\FlyCtl.pdb
+C:\path\FlyMenu\publish\FlyCtl.exe

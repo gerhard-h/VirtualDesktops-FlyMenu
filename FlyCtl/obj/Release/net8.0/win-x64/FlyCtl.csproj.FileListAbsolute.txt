@@ -1,0 +1,15 @@
+C:\path\FlyMenu\FlyCtl\bin\Release\net8.0\win-x64\FlyCtl.exe
+C:\path\FlyMenu\FlyCtl\bin\Release\net8.0\win-x64\FlyCtl.deps.json
+C:\path\FlyMenu\FlyCtl\bin\Release\net8.0\win-x64\FlyCtl.runtimeconfig.json
+C:\path\FlyMenu\FlyCtl\bin\Release\net8.0\win-x64\FlyCtl.dll
+C:\path\FlyMenu\FlyCtl\bin\Release\net8.0\win-x64\FlyCtl.pdb
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.GeneratedMSBuildEditorConfig.editorconfig
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.AssemblyInfoInputs.cache
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.AssemblyInfo.cs
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.csproj.CoreCompileInputs.cache
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.sourcelink.json
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.dll
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\refint\FlyCtl.dll
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.pdb
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\FlyCtl.genruntimeconfig.cache
+C:\path\FlyMenu\FlyCtl\obj\Release\net8.0\win-x64\ref\FlyCtl.dll
