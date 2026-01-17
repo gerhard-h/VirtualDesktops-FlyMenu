@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using WindowsDesktop;
 
 namespace FlyMenu
 {
@@ -39,6 +40,9 @@ namespace FlyMenu
                 if (string.IsNullOrEmpty(label))
                     continue;
 
+                // Replace %i placeholder with desktop number
+                label = ReplacePlaceholders(label, cfg);
+
                 var menuItem = new ToolStripMenuItem(label);
 
                 // Load and set icon if specified
@@ -50,6 +54,53 @@ namespace FlyMenu
                 // Add to menu
                 menu.Items.Add(menuItem);
             }
+        }
+
+        /// <summary>
+        /// Replaces placeholders in menu labels with actual values
+        /// </summary>
+        private static string ReplacePlaceholders(string label, MenuItemConfig config)
+        {
+            // Replace %i with desktop number for "switch before" actions
+            if (label.Contains("%i") && config.Type?.ToLowerInvariant() == "switch before")
+            {
+                try
+                {
+                    // Get the previous desktop from history
+                    var previousDesktop = TrayApplicationContext.DesktopHistory[0];
+                    
+                    if (previousDesktop != null)
+                    {
+                        // Get all desktops to find the index
+                        var allDesktops = VirtualDesktop.GetDesktops();
+                        var desktopIndex = Array.FindIndex(allDesktops, d => d.Id == previousDesktop.Id);
+        
+                        if (desktopIndex >= 0)
+                        {
+                            // Replace %i with 1-based desktop number
+                            int desktopNumber = desktopIndex + 1;
+                            label = label.Replace("%i", desktopNumber.ToString());
+                        }
+                        else
+                        {
+                            // Desktop not found in list, just remove placeholder
+                            label = label.Replace("%i", "?");
+                        }
+                    }
+                    else
+                    {
+                        // No previous desktop in history, remove placeholder
+                        label = label.Replace("%i", "-");
+                    }
+                }
+                catch
+                {
+                    // If any error occurs, just remove the placeholder
+                    label = label.Replace("%i", "?");
+                }
+            }
+   
+            return label;
         }
     }
 }
