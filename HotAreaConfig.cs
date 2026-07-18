@@ -15,6 +15,13 @@ namespace FlyMenu
         [JsonPropertyName("showAppMenu")]
         public bool ShowAppMenu { get; set; } = false;
 
+        /// <summary>
+        /// Default sort order for the running programs (app) menu.
+        /// Valid values: "alpha" (alphabetical) or "lastused" (Z-order / last used).
+        /// </summary>
+        [JsonPropertyName("defaultAppSortOrder")]
+        public string DefaultAppSortOrder { get; set; } = "lastused";
+
         [JsonPropertyName("menuItems")]
         public List<MenuItemConfig>? MenuItems { get; set; }
     }

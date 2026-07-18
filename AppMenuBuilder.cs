@@ -173,13 +173,15 @@ namespace FlyMenu
                     }
                 }
 
-                // Get or initialize sort order for this desktop (default: alphabetical = true)
+                // Get or initialize sort order for this desktop (default from config)
                 if (desktopId.HasValue && !desktopSortOrder.ContainsKey(desktopId.Value))
                 {
-                    desktopSortOrder[desktopId.Value] = true;  // Default to alphabetical
+                    desktopSortOrder[desktopId.Value] = ConfigLoader.GetDefaultAppSortAlphabetical();
                 }
 
-                bool isAlphabetical = desktopId.HasValue ? desktopSortOrder[desktopId.Value] : true;
+                bool isAlphabetical = desktopId.HasValue
+                    ? desktopSortOrder[desktopId.Value]
+                    : ConfigLoader.GetDefaultAppSortAlphabetical();
                 string sortIndicator = isAlphabetical ? "▲ " : "◆ ";
 
                 // Add desktop header (clickable to toggle sort)

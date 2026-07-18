@@ -142,6 +142,22 @@ namespace FlyMenu
         }
 
         /// <summary>
+        /// Gets the default sort order for the app menu.
+        /// Returns true if alphabetical, false if last-used (Z-order).
+        /// </summary>
+        public static bool GetDefaultAppSortAlphabetical()
+        {
+            var config = LoadConfig();
+            var value = config.DefaultAppSortOrder?.Trim().ToLowerInvariant();
+            // "lastused" / "last-used" / "last_used" / "zorder" => false, otherwise alphabetical
+            return value switch
+            {
+                "lastused" or "last-used" or "last_used" or "zorder" or "z-order" => false,
+                _ => true
+            };
+        }
+
+        /// <summary>
         /// Returns a default configuration with standard settings
         /// </summary>
         private static FlyMenuConfig GetDefaultConfig()
