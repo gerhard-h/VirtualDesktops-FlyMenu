@@ -19,6 +19,7 @@ namespace FlyMenu
         private readonly ContextMenuStrip appMenu;  // New: App menu
         private System.Windows.Forms.Timer pollTimer = null!;
         private MessageWindow? messageWindow;
+        private HotAreaIndicator? hotAreaIndicator;
         private readonly int uiThreadId;
 
         public static VirtualDesktop?[] DesktopHistory = new VirtualDesktop?[2];
@@ -94,6 +95,10 @@ namespace FlyMenu
             {
                 System.Diagnostics.Debug.WriteLine($"TrayApplicationContext: VirtualDesktop initialization WARNING: {ex.GetType().Name}: {ex.Message}");
             }
+
+            // Create the hot-area visual indicator (click-through, non-activating overlay)
+            hotAreaIndicator = new HotAreaIndicator();
+            hotAreaIndicator.ApplyConfig(ConfigLoader.GetHotAreaConfig());
 
             CreatePollTimer();
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initialization complete");
@@ -201,6 +206,9 @@ namespace FlyMenu
             var cursor = Cursor.Position;
             var screen = Screen.FromPoint(cursor);
             var hotArea = ConfigLoader.GetHotAreaConfig();
+
+            // Keep the indicator in sync with current config (cheap; safe if unchanged)
+            hotAreaIndicator?.ApplyConfig(hotArea);
 
             // Calculate if cursor is in hot area
             bool isInHotArea = IsInHotArea(cursor, screen, hotArea);
@@ -519,6 +527,9 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
             flyoutMenu.Dispose();
             appMenu.Dispose();  // Clean up app menu
 
+            hotAreaIndicator?.Dispose();
+            hotAreaIndicator = null;
+
             Application.Exit();
         }
 
@@ -569,6 +580,8 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
                 TrayMenu?.Dispose();
                 flyoutMenu?.Dispose();
 appMenu?.Dispose();  // Clean up app menu
+                hotAreaIndicator?.Dispose();
+                hotAreaIndicator = null;
 }
 
    base.Dispose(disposing);

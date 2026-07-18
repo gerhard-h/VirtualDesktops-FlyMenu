@@ -47,6 +47,26 @@ namespace FlyMenu
         public int CatchHeight { get; set; } = 10;
         [JsonPropertyName("triggerHeight")]
         public int triggerHeight { get; set; } = 5;
+
+        /// <summary>
+        /// Height in pixels of the visible hot-area indicator stripe.
+        /// 0 (default) disables the indicator. Only shown when Edge == "top".
+        /// </summary>
+        [JsonPropertyName("indicatorHeight")]
+        public int IndicatorHeight { get; set; } = 0;
+
+        /// <summary>
+        /// Color of the indicator stripe. Accepts named colors ("Red")
+        /// or hex ("#RRGGBB" / "#AARRGGBB"). Default: red.
+        /// </summary>
+        [JsonPropertyName("indicatorColor")]
+        public string? IndicatorColor { get; set; } = "#FF0000";
+
+        /// <summary>
+        /// Opacity of the indicator stripe (0.0 transparent - 1.0 opaque). Default: 0.5.
+        /// </summary>
+        [JsonPropertyName("indicatorOpacity")]
+        public double IndicatorOpacity { get; set; } = 0.5;
     }
 
     /// <summary>
