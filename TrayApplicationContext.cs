@@ -164,18 +164,44 @@ namespace FlyMenu
                 // TASKBAR FIX: Prevent menu from appearing in taskbar
                 PreventTaskbarAppearance(flyoutMenu);
 
-                // Calculate position for app menu (directly adjacent, zero gap)
                 var flyoutBounds = flyoutMenu.Bounds;
-                int appMenuX = flyoutBounds.Right;  // Zero gap - place right edge of flyout to left edge of app menu
-                int appMenuY = flyoutBounds.Top;
+                var work = screen.WorkingArea;
 
-                // Show app menu at calculated position
-                appMenu.Show(appMenuX, appMenuY);
+                // Determine app-menu size before showing so we can decide the side
+                var appPreferred = appMenu.GetPreferredSize(Size.Empty);
+                int appMenuWidth = Math.Max(1, appPreferred.Width);
+                int appMenuHeight = Math.Max(1, appPreferred.Height);
+
+                // Prefer right side (zero gap). If it does not fit, place on the left instead.
+                int appMenuX;
+                if (flyoutBounds.Right + appMenuWidth <= work.Right)
+                {
+                    appMenuX = flyoutBounds.Right;
+                }
+                else if (flyoutBounds.Left - appMenuWidth >= work.Left)
+                {
+                    appMenuX = flyoutBounds.Left - appMenuWidth;
+                }
+                else
+                {
+                    // Neither side fits fully - clamp to right side of screen
+                    appMenuX = Math.Max(work.Left, work.Right - appMenuWidth);
+                }
+
+                // Align vertically with flyout, but keep on screen
+                int appMenuY = flyoutBounds.Top;
+                if (appMenuY + appMenuHeight > work.Bottom)
+                    appMenuY = Math.Max(work.Top, work.Bottom - appMenuHeight);
+
+                // Show with an explicit direction so WinForms does not auto-flip
+                // horizontally (which caused it to land on top of the flyout when
+                // invoked from the tray icon in the bottom-right corner).
+                appMenu.Show(new Point(appMenuX, appMenuY), ToolStripDropDownDirection.BelowRight);
 
                 // TASKBAR FIX: Prevent app menu from appearing in taskbar
                 PreventTaskbarAppearance(appMenu);
 
-                System.Diagnostics.Debug.WriteLine($"ShowMenus: Flyout at ({flyoutBounds.X}, {flyoutBounds.Y}), App at ({appMenuX}, {appMenuY})");
+                System.Diagnostics.Debug.WriteLine($"ShowMenus: Flyout at ({flyoutBounds.X}, {flyoutBounds.Y}) size {flyoutBounds.Size}, App at ({appMenuX}, {appMenuY}) size ({appMenuWidth}, {appMenuHeight})");
             }
             else
             {
