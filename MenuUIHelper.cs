@@ -91,7 +91,7 @@ namespace FlyMenu
         /// Positions a menu under the cursor, centered horizontally.
         /// Only repositions cursor for top/bottom edges.
         /// </summary>
-        public static void ShowMenuCenteredUnderCursor(ContextMenuStrip menu, Point cursor, Screen screen, int yPosition, string? edge = "top", bool catchMouse = false, int catchHeightPixels = 10)
+        public static void ShowMenuCenteredUnderCursor(ContextMenuStrip menu, Point cursor, Screen screen, int yPosition, string? edge = "top", bool catchMouse = false, int catchHeightPixels = 10, bool moveCursor = true)
         {
             // Compute preferred size to determine width
             var preferred = menu.GetPreferredSize(Size.Empty);
@@ -114,8 +114,10 @@ namespace FlyMenu
             catchHeight = catchHeightPixels;
             catchEdge = edge;
 
-            // Move cursor only for top/bottom edges
-            if (edge?.ToLowerInvariant() is "top" or "bottom")
+            // Move cursor only for top/bottom edges, and only when requested
+            // (skipped on keepOpen reopen so the pointer stays where the user
+            // clicked, letting them click again immediately).
+            if (moveCursor && edge?.ToLowerInvariant() is "top" or "bottom")
             {
                 try
                 {

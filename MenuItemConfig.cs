@@ -18,5 +18,14 @@ namespace FlyMenu
 
         [JsonPropertyName("icon")]
         public string? Icon { get; set; }
+
+        /// <summary>
+        /// When true, the menu is reopened at its previous position after the
+        /// action executes (so the user can click again without re-triggering
+        /// the hot area). Default: false.
+        /// Typical use case: "Next Desktop" / "Prev Desktop" cycling.
+        /// </summary>
+        [JsonPropertyName("keepOpen")]
+        public bool KeepOpen { get; set; } = false;
     }
 }

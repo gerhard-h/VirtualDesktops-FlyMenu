@@ -22,6 +22,19 @@ namespace FlyMenu
         private readonly List<HotAreaIndicator> hotAreaIndicators = new List<HotAreaIndicator>();
         private readonly int uiThreadId;
 
+        // Remembered state of the most recent ShowMenus() call so that
+        // MenuActionHandler can reopen the menu at the same position when a
+        // menu item is marked keepOpen == true.
+        private Point lastShowCursor;
+        private Screen? lastShowScreen;
+        private int lastShowYPosition;
+        private HotAreaConfig? lastShowHotArea;
+        private bool hasLastShow;
+
+        // Static hook installed by the constructor so static helpers
+        // (MenuActionHandler) can request a reopen without a direct reference.
+        internal static Action? ReopenLastMenus;
+
         public static VirtualDesktop?[] DesktopHistory = new VirtualDesktop?[2];
 
         public NotifyIcon NotifyIcon => notifyIcon;
@@ -78,6 +91,9 @@ namespace FlyMenu
 
             // Set menu references in MenuActionHandler so actions can close menus
             MenuActionHandler.SetMenuReferences(flyoutMenu, appMenu);
+
+            // Provide a reopen hook for keepOpen menu items
+            ReopenLastMenus = ReopenLastShownMenus;
 
             // Subscribe to VirtualDesktop changes
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Subscribing to VirtualDesktop.CurrentChanged...");
@@ -140,8 +156,14 @@ namespace FlyMenu
         /// <summary>
         /// Shows both the flyout menu and app menu (if enabled) side by side with zero gap
         /// </summary>
-        private void ShowMenus(Point cursor, Screen screen, int yPosition, HotAreaConfig hotArea)
+        private void ShowMenus(Point cursor, Screen screen, int yPosition, HotAreaConfig hotArea, bool moveCursor = true)
         {
+            // Remember args so "keepOpen" actions can reopen the menu at the same spot.
+            lastShowCursor = cursor;
+            lastShowScreen = screen;
+            lastShowYPosition = yPosition;
+            lastShowHotArea = hotArea;
+            hasLastShow = true;
             // Populate desktop menu
             PopulateMenuFromConfig();
 
@@ -159,7 +181,7 @@ namespace FlyMenu
                 appMenu.AutoClose = false;
 
                 // Show flyout menu first to get its width
-                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
 
                 // TASKBAR FIX: Prevent menu from appearing in taskbar
                 PreventTaskbarAppearance(flyoutMenu);
@@ -206,7 +228,7 @@ namespace FlyMenu
             else
             {
                 // Show only flyout menu
-                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight);
+                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
                 
                 // TASKBAR FIX: Prevent menu from appearing in taskbar
                 PreventTaskbarAppearance(flyoutMenu);
@@ -217,6 +239,62 @@ namespace FlyMenu
         {
             var configs = ConfigLoader.LoadMenuConfigs();
             MenuBuilder.PopulateMenu(flyoutMenu, configs);
+        }
+
+        /// <summary>
+        /// Reopens the flyout (and app menu) at the same position as the last
+        /// ShowMenus() call. Used for menu items with keepOpen == true.
+        /// Called on the UI thread from a menu Click handler; a short timer
+        /// defer lets the current action (e.g. VirtualDesktop.Switch) and the
+        /// menu-close side effects settle before we reopen.
+        /// </summary>
+        private void ReopenLastShownMenus()
+        {
+            if (!hasLastShow || lastShowScreen == null || lastShowHotArea == null)
+            {
+                System.Diagnostics.Debug.WriteLine("ReopenLastShownMenus: no remembered state, skipping");
+                return;
+            }
+
+            try
+            {
+                var t = new System.Windows.Forms.Timer { Interval = 30 };
+                t.Tick += (s, e) =>
+                {
+                    t.Stop();
+                    t.Dispose();
+                    try
+                    {
+                        if (!hasLastShow || lastShowScreen == null || lastShowHotArea == null)
+                            return;
+
+                        // Make sure both menus are actually closed before re-showing;
+                        // otherwise ContextMenuStrip.Show becomes a no-op.
+                        if (flyoutMenu.Visible) flyoutMenu.Close();
+                        if (appMenu.Visible) appMenu.Close();
+
+                        // Re-enable AutoClose so the reopened menu behaves normally
+                        flyoutMenu.AutoClose = true;
+                        appMenu.AutoClose = true;
+
+                        // Use the last-known cursor rather than the (potentially moved)
+                        // current cursor so the menu appears at the same spot.
+                        // moveCursor=false: keep the pointer where the user clicked so
+                        // subsequent clicks land on the same item.
+                        ShowMenus(lastShowCursor, lastShowScreen, lastShowYPosition, lastShowHotArea, moveCursor: false);
+                        System.Diagnostics.Debug.WriteLine("ReopenLastShownMenus: reopened at last position");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"ReopenLastShownMenus tick ERROR: {ex.Message}");
+                    }
+                };
+                t.Start();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ReopenLastShownMenus ERROR: {ex.Message}");
+            }
         }
 
         private void CreatePollTimer()

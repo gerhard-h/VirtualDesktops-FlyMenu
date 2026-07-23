@@ -48,6 +48,11 @@ namespace FlyMenu
             {
                 CloseMenus();
                 ExecuteMenuAction(config);
+
+                if (config.KeepOpen)
+                {
+                    TrayApplicationContext.ReopenLastMenus?.Invoke();
+                }
             };
         }
 
