@@ -21,6 +21,12 @@ namespace FlyMenu
         private static readonly TimeSpan CacheExpiration = TimeSpan.FromSeconds(3600);
         private static int cacheHitCount = 0;
 
+        // Tracks the file write time of the last config we attempted to load,
+        // so that a broken config only triggers a single MessageBox until the
+        // user actually edits the file again.
+        private static DateTime lastReportedFileWriteTime = DateTime.MinValue;
+        private static string? lastReportedError = null;
+
         /// <summary>
         /// Loads the complete FlyMenu configuration from FlyMenu.config file
         /// </summary>
@@ -51,9 +57,12 @@ namespace FlyMenu
                 var configPath = Path.Combine(AppContext.BaseDirectory, "FlyMenu.config");
                 if (!File.Exists(configPath))
                 {
-                    MessageBox.Show($"Config file not found at: {configPath}", "Config Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return GetDefaultConfig();
+                    ReportConfigErrorOnce(configPath, DateTime.MinValue,
+                        $"Config file not found at: {configPath}", "Config Error");
+                    return CacheAndReturn(GetDefaultConfig());
                 }
+
+                DateTime fileWriteTime = File.GetLastWriteTimeUtc(configPath);
 
                 // Read file with FileShare.Read to allow file to be modified while app is running
                 string json;
@@ -70,14 +79,20 @@ namespace FlyMenu
                 }
                 catch (JsonException jsonEx)
                 {
-                    MessageBox.Show($"JSON parsing error in FlyMenu.config:\n{jsonEx.Message}\n\nLine: {jsonEx.LineNumber}, Byte Position: {jsonEx.BytePositionInLine}", "JSON Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return GetDefaultConfig();
+                    ReportConfigErrorOnce(configPath, fileWriteTime,
+                        $"JSON parsing error in FlyMenu.config:\n{jsonEx.Message}\n\nLine: {jsonEx.LineNumber}, Byte Position: {jsonEx.BytePositionInLine}",
+                        "JSON Error");
+                    return CacheAndReturn(GetDefaultConfig());
                 }
 
                 if (config == null)
                 {
-                    return GetDefaultConfig();
+                    return CacheAndReturn(GetDefaultConfig());
                 }
+
+                // Successful parse - clear error suppression so future breakage is reported again
+                lastReportedError = null;
+                lastReportedFileWriteTime = fileWriteTime;
 
                 // Apply defaults if sections are missing
                 config.HotArea ??= new HotAreaConfig();
@@ -269,6 +284,40 @@ namespace FlyMenu
             cachedConfig = null;
             lastConfigLoad = DateTime.MinValue;
             cacheHitCount = 0;
+            // Allow config errors to be reported again after an explicit reload
+            lastReportedError = null;
+            lastReportedFileWriteTime = DateTime.MinValue;
+        }
+
+        /// <summary>
+        /// Caches the given config (typically a default fallback after an error)
+        /// so repeated polling does not repeatedly re-parse / re-prompt.
+        /// </summary>
+        private static FlyMenuConfig CacheAndReturn(FlyMenuConfig config)
+        {
+            cachedConfig = config;
+            lastConfigLoad = DateTime.Now;
+            return config;
+        }
+
+        /// <summary>
+        /// Shows a MessageBox for a config error, but only once per unique
+        /// (file-write-time + message) combination. Prevents an infinite series
+        /// of dialogs when the poll timer keeps re-loading a broken config.
+        /// </summary>
+        private static void ReportConfigErrorOnce(string configPath, DateTime fileWriteTime, string message, string caption)
+        {
+            System.Diagnostics.Debug.WriteLine($"ConfigLoader: {caption}: {message}");
+
+            if (lastReportedError == message && lastReportedFileWriteTime == fileWriteTime)
+            {
+                // Already reported for this exact file version - stay silent
+                return;
+            }
+
+            lastReportedError = message;
+            lastReportedFileWriteTime = fileWriteTime;
+            MessageBox.Show(message, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }
