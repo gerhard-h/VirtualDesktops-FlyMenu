@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Windows.Forms;
 
@@ -28,6 +29,9 @@ namespace FlyMenu
 
         private const int WM_MOUSEACTIVATE = 0x0021;
         private const int MA_NOACTIVATE    = 0x0003;
+
+        private int lastRadius = -1;
+        private Size lastSize = Size.Empty;
 
         public HotAreaIndicator()
         {
@@ -70,7 +74,15 @@ namespace FlyMenu
         /// </summary>
         public void ApplyConfig(HotAreaConfig hotArea)
         {
-            if (hotArea == null)
+            ApplyConfig(hotArea, Screen.PrimaryScreen ?? Screen.AllScreens[0]);
+        }
+
+        /// <summary>
+        /// Applies the configured HotArea indicator settings on the given screen.
+        /// </summary>
+        public void ApplyConfig(HotAreaConfig hotArea, Screen screen)
+        {
+            if (hotArea == null || screen == null)
             {
                 Hide();
                 return;
@@ -85,8 +97,7 @@ namespace FlyMenu
                 return;
             }
 
-            var screen = Screen.PrimaryScreen ?? Screen.AllScreens[0];
-            var area = screen.Bounds; // stripe sits above the working area, at the very top edge
+            var area = screen.Bounds; // stripe sits at the very top edge
 
             int startPct = Math.Max(0, Math.Min(100, hotArea.StartPercentage));
             int endPct = Math.Max(0, Math.Min(100, hotArea.EndPercentage));
@@ -101,10 +112,51 @@ namespace FlyMenu
 
             Bounds = new Rectangle(left, area.Top, width, height);
 
+            ApplyBottomRoundedRegion(hotArea.IndicatorCornerRadius);
+
             if (!Visible)
             {
                 Show();
             }
+        }
+
+        /// <summary>
+        /// Sets a window region that rounds only the bottom-left and bottom-right corners.
+        /// </summary>
+        private void ApplyBottomRoundedRegion(int radius)
+        {
+            int maxRadius = Math.Max(0, Math.Min(Width, Height));
+            radius = Math.Max(0, Math.Min(radius, maxRadius));
+
+            if (radius == lastRadius && Size == lastSize)
+                return;
+
+            lastRadius = radius;
+            lastSize = Size;
+
+            if (radius == 0)
+            {
+                Region?.Dispose();
+                Region = null;
+                return;
+            }
+
+            int w = Width;
+            int h = Height;
+            int d = radius * 2;
+
+            using var path = new GraphicsPath();
+            path.AddLine(0, 0, w, 0);
+            path.AddLine(w, 0, w, h - radius);
+            path.AddArc(w - d, h - d, d, d, 0, 90);
+            path.AddLine(w - radius, h, radius, h);
+            path.AddArc(0, h - d, d, d, 90, 90);
+            path.AddLine(0, h - radius, 0, 0);
+            path.CloseFigure();
+
+            var newRegion = new Region(path);
+            Region?.Dispose();
+            Region = newRegion;
         }
 
         private static Color ParseColor(string? value)

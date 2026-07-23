@@ -67,6 +67,22 @@ namespace FlyMenu
         /// </summary>
         [JsonPropertyName("indicatorOpacity")]
         public double IndicatorOpacity { get; set; } = 0.5;
+
+        /// <summary>
+        /// Corner radius in pixels applied only to the bottom-left and bottom-right
+        /// corners of the indicator stripe. 0 (default) = square corners.
+        /// </summary>
+        [JsonPropertyName("indicatorCornerRadius")]
+        public int IndicatorCornerRadius { get; set; } = 0;
+
+        /// <summary>
+        /// Restricts the hot area (and visible indicator) to the listed monitors.
+        /// Values are 1-based indices into <see cref="System.Windows.Forms.Screen.AllScreens"/>.
+        /// When null or empty, the hot area is active on all monitors (default).
+        /// Example: [1] = primary monitor only, [1,3] = first and third monitor.
+        /// </summary>
+        [JsonPropertyName("monitors")]
+        public List<int>? Monitors { get; set; }
     }
 
     /// <summary>

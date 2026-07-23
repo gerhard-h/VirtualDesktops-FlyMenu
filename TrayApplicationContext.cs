@@ -19,7 +19,7 @@ namespace FlyMenu
         private readonly ContextMenuStrip appMenu;  // New: App menu
         private System.Windows.Forms.Timer pollTimer = null!;
         private MessageWindow? messageWindow;
-        private HotAreaIndicator? hotAreaIndicator;
+        private readonly List<HotAreaIndicator> hotAreaIndicators = new List<HotAreaIndicator>();
         private readonly int uiThreadId;
 
         public static VirtualDesktop?[] DesktopHistory = new VirtualDesktop?[2];
@@ -97,8 +97,7 @@ namespace FlyMenu
             }
 
             // Create the hot-area visual indicator (click-through, non-activating overlay)
-            hotAreaIndicator = new HotAreaIndicator();
-            hotAreaIndicator.ApplyConfig(ConfigLoader.GetHotAreaConfig());
+            SyncHotAreaIndicators(ConfigLoader.GetHotAreaConfig());
 
             CreatePollTimer();
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initialization complete");
@@ -207,8 +206,8 @@ namespace FlyMenu
             var screen = Screen.FromPoint(cursor);
             var hotArea = ConfigLoader.GetHotAreaConfig();
 
-            // Keep the indicator in sync with current config (cheap; safe if unchanged)
-            hotAreaIndicator?.ApplyConfig(hotArea);
+            // Keep the indicators in sync with current config (cheap; safe if unchanged)
+            SyncHotAreaIndicators(hotArea);
 
             // Calculate if cursor is in hot area
             bool isInHotArea = IsInHotArea(cursor, screen, hotArea);
@@ -270,6 +269,9 @@ namespace FlyMenu
         /// </summary>
         private static bool IsInHotArea(Point cursor, Screen screen, HotAreaConfig hotArea)
         {
+            if (!IsMonitorAllowed(screen, hotArea))
+                return false;
+
             int tolerance = 3; // pixel tolerance
             string edge = hotArea.Edge?.ToLowerInvariant() ?? "top";
 
@@ -281,6 +283,49 @@ namespace FlyMenu
                 "right" => IsInRightHotArea(cursor, screen, hotArea, tolerance),
                 _ => false
             };
+        }
+
+        /// <summary>
+        /// Returns true if the given screen is allowed by the Monitors config
+        /// (null/empty list => all monitors allowed).
+        /// </summary>
+        internal static bool IsMonitorAllowed(Screen screen, HotAreaConfig hotArea)
+        {
+            var monitors = hotArea.Monitors;
+            if (monitors == null || monitors.Count == 0)
+                return true;
+
+            var all = Screen.AllScreens;
+            int index1Based = Array.IndexOf(all, screen) + 1;
+            return index1Based > 0 && monitors.Contains(index1Based);
+        }
+
+        /// <summary>
+        /// Ensures there is exactly one HotAreaIndicator per allowed monitor and
+        /// updates each with the current config.
+        /// </summary>
+        private void SyncHotAreaIndicators(HotAreaConfig hotArea)
+        {
+            var allowedScreens = Screen.AllScreens.Where(s => IsMonitorAllowed(s, hotArea)).ToList();
+
+            // Grow to match count
+            while (hotAreaIndicators.Count < allowedScreens.Count)
+            {
+                hotAreaIndicators.Add(new HotAreaIndicator());
+            }
+
+            // Shrink if there are now fewer allowed screens
+            while (hotAreaIndicators.Count > allowedScreens.Count)
+            {
+                int last = hotAreaIndicators.Count - 1;
+                hotAreaIndicators[last].Dispose();
+                hotAreaIndicators.RemoveAt(last);
+            }
+
+            for (int i = 0; i < allowedScreens.Count; i++)
+            {
+                hotAreaIndicators[i].ApplyConfig(hotArea, allowedScreens[i]);
+            }
         }
 
         /// <summary>
@@ -527,8 +572,8 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
             flyoutMenu.Dispose();
             appMenu.Dispose();  // Clean up app menu
 
-            hotAreaIndicator?.Dispose();
-            hotAreaIndicator = null;
+            foreach (var ind in hotAreaIndicators) ind.Dispose();
+            hotAreaIndicators.Clear();
 
             Application.Exit();
         }
@@ -580,8 +625,8 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
                 TrayMenu?.Dispose();
                 flyoutMenu?.Dispose();
 appMenu?.Dispose();  // Clean up app menu
-                hotAreaIndicator?.Dispose();
-                hotAreaIndicator = null;
+                foreach (var ind in hotAreaIndicators) ind.Dispose();
+                hotAreaIndicators.Clear();
 }
 
    base.Dispose(disposing);
