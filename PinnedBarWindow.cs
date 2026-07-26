@@ -607,11 +607,25 @@ namespace FlyMenu
         {
             try
             {
-                var psi = new ProcessStartInfo
+                ProcessStartInfo psi;
+
+                // shell:AppsFolder\... and other shell:... paths must be resolved
+                // by explorer.exe; ShellExecuteEx does not accept them directly.
+                if (path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
                 {
-                    FileName = path,          // point at the .lnk
-                    UseShellExecute = true,   // required for .lnk + AUMID handling
-                };
+                    psi = new ProcessStartInfo("explorer.exe", $"\"{path}\"")
+                    {
+                        UseShellExecute = true,
+                    };
+                }
+                else
+                {
+                    psi = new ProcessStartInfo
+                    {
+                        FileName = path,          // .lnk, .exe, or URI protocol (e.g. microsoft-copilot:)
+                        UseShellExecute = true,   // required for .lnk + AUMID handling
+                    };
+                }
                 Process.Start(psi);
             }
             catch (Exception ex)
