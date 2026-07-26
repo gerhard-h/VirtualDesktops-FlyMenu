@@ -20,6 +20,7 @@ namespace FlyMenu
         private System.Windows.Forms.Timer pollTimer = null!;
         private MessageWindow? messageWindow;
         private readonly List<HotAreaIndicator> hotAreaIndicators = new List<HotAreaIndicator>();
+        private PinnedBarWindow? pinnedBar;
         private readonly int uiThreadId;
 
         // Remembered state of the most recent ShowMenus() call so that
@@ -114,6 +115,9 @@ namespace FlyMenu
 
             // Create the hot-area visual indicator (click-through, non-activating overlay)
             SyncHotAreaIndicators(ConfigLoader.GetHotAreaConfig());
+
+            // Pinned-bar is created on-demand in ShowPinnedBar and destroyed in
+            // DestroyPinnedBar (called when the combined menu bounds are left).
 
             CreatePollTimer();
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initialization complete");
@@ -223,15 +227,64 @@ namespace FlyMenu
                 // TASKBAR FIX: Prevent app menu from appearing in taskbar
                 PreventTaskbarAppearance(appMenu);
 
+                // Position optional pinned bar directly above the app menu
+                ShowPinnedBar(screen, appMenu.Bounds);
+
                 System.Diagnostics.Debug.WriteLine($"ShowMenus: Flyout at ({flyoutBounds.X}, {flyoutBounds.Y}) size {flyoutBounds.Size}, App at ({appMenuX}, {appMenuY}) size ({appMenuWidth}, {appMenuHeight})");
             }
             else
             {
                 // Show only flyout menu
                 MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
-                
+
                 // TASKBAR FIX: Prevent menu from appearing in taskbar
                 PreventTaskbarAppearance(flyoutMenu);
+
+                // Pinned bar (if enabled) anchors above the flyout when there is no app menu
+                ShowPinnedBar(screen, flyoutMenu.Bounds);
+            }
+        }
+
+        /// <summary>
+        /// Creates a fresh pinned bar window, populates it from config, and
+        /// positions it directly above the given anchor (typically appMenu.Bounds
+        /// or flyoutMenu.Bounds), left-aligned to it. Any previous bar instance
+        /// is destroyed first so we never fight WinForms/Win32 state left over
+        /// from a hidden window.
+        /// </summary>
+        private void ShowPinnedBar(Screen screen, Rectangle anchor)
+        {
+            // Always destroy any existing bar so each activation starts from a
+            // fresh HWND. Cheap (few icons, few buttons) and avoids the
+            // WS_EX_NOACTIVATE + WS_EX_TOPMOST re-show quirks we hit before.
+            DestroyPinnedBar();
+
+            var cfg = ConfigLoader.GetPinnedBarConfig();
+            bool enabled = cfg != null && cfg.Enabled && cfg.Items != null && cfg.Items.Count > 0;
+            if (!enabled) return;
+
+            pinnedBar = new PinnedBarWindow();
+            pinnedBar.Rebuild(cfg!);
+
+            var work = screen.WorkingArea;
+
+            int barX = anchor.Left;
+            int barY = anchor.Top - pinnedBar.Height;
+            if (barY < work.Top) barY = work.Top;
+            if (barX + pinnedBar.Width > work.Right)
+                barX = Math.Max(work.Left, work.Right - pinnedBar.Width);
+
+            pinnedBar.ShowNoActivate(new Point(barX, barY));
+        }
+
+        /// <summary>Destroys the current pinned bar instance if any.</summary>
+        private void DestroyPinnedBar()
+        {
+            if (pinnedBar != null)
+            {
+                try { pinnedBar.Dispose(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"DestroyPinnedBar: {ex.Message}"); }
+                pinnedBar = null;
             }
         }
 
@@ -333,26 +386,19 @@ namespace FlyMenu
 
             // Hide menus if visible and cursor moves away from them
             // BUT only if cursor is NOT in the hot area
-            // Combine bounds if both menus are visible
-            if (flyoutMenu.Visible || appMenu.Visible)
+            // Combine bounds of any visible surface (flyout / app menu / pinned bar)
+            if (flyoutMenu.Visible || appMenu.Visible || (pinnedBar != null && pinnedBar.Visible))
             {
-                Rectangle combinedBounds;
+                Rectangle combinedBounds = Rectangle.Empty;
 
-                if (flyoutMenu.Visible && appMenu.Visible)
+                void AddBounds(Rectangle r)
                 {
-                    // Both menus visible - union their bounds
-                    combinedBounds = Rectangle.Union(flyoutMenu.Bounds, appMenu.Bounds);
+                    combinedBounds = combinedBounds.IsEmpty ? r : Rectangle.Union(combinedBounds, r);
                 }
-                else if (flyoutMenu.Visible)
-                {
-                    // Only flyout menu visible
-                    combinedBounds = flyoutMenu.Bounds;
-                }
-                else
-                {
-                    // Only app menu visible (shouldn't happen, but handle it)
-                    combinedBounds = appMenu.Bounds;
-                }
+
+                if (flyoutMenu.Visible) AddBounds(flyoutMenu.Bounds);
+                if (appMenu.Visible) AddBounds(appMenu.Bounds);
+                if (pinnedBar?.Visible == true) AddBounds(pinnedBar.Bounds);
 
                 var padded = Rectangle.Inflate(combinedBounds, 8, 8);
 
@@ -364,6 +410,7 @@ namespace FlyMenu
                     MenuUIHelper.DisableMouseCatch();
                     flyoutMenu.Close();
                     appMenu.Close();
+                    DestroyPinnedBar();
                 }
             }
         }
@@ -679,6 +726,8 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
             foreach (var ind in hotAreaIndicators) ind.Dispose();
             hotAreaIndicators.Clear();
 
+            DestroyPinnedBar();
+
             Application.Exit();
         }
 
@@ -731,6 +780,7 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
 appMenu?.Dispose();  // Clean up app menu
                 foreach (var ind in hotAreaIndicators) ind.Dispose();
                 hotAreaIndicators.Clear();
+                DestroyPinnedBar();
 }
 
    base.Dispose(disposing);

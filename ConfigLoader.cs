@@ -156,6 +156,12 @@ namespace FlyMenu
             return config.ShowAppMenu;
         }
 
+        /// <summary>Gets the pinned-bar configuration (may be null / disabled).</summary>
+        public static PinnedBarConfig? GetPinnedBarConfig()
+        {
+            return LoadConfig().PinnedBar;
+        }
+
         /// <summary>
         /// Gets the default sort order for the app menu.
         /// Returns true if alphabetical, false if last-used (Z-order).

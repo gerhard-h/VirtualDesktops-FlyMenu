@@ -24,6 +24,58 @@ namespace FlyMenu
 
         [JsonPropertyName("menuItems")]
         public List<MenuItemConfig>? MenuItems { get; set; }
+
+        /// <summary>Optional pinned-programs bar shown above the running-programs menu.</summary>
+        [JsonPropertyName("pinnedBar")]
+        public PinnedBarConfig? PinnedBar { get; set; }
+    }
+
+    /// <summary>Pinned-programs bar configuration.</summary>
+    public class PinnedBarConfig
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = false;
+
+        /// <summary>Icon size in pixels for each pinned entry. Default 32.</summary>
+        [JsonPropertyName("iconSize")]
+        public int IconSize { get; set; } = 32;
+
+        /// <summary>
+        /// Background color for the bar (any #RRGGBB, #AARRGGBB, or named color).
+        /// Default is a bright neutral so shell icons with alpha don't appear black.
+        /// </summary>
+        [JsonPropertyName("backgroundColor")]
+        public string? BackgroundColor { get; set; } = "#F0F0F0";
+
+        /// <summary>
+        /// Ordered list of pinned entries. IMPORTANT: point Path at the .lnk shortcut
+        /// (not the raw .exe) so Windows groups the launched process under the correct
+        /// taskbar pin via the shortcut's AppUserModelID.
+        /// </summary>
+        [JsonPropertyName("items")]
+        public List<PinnedItemConfig>? Items { get; set; }
+    }
+
+    public class PinnedItemConfig
+    {
+        [JsonPropertyName("path")]
+        public string? Path { get; set; }
+
+        /// <summary>Optional tooltip override. If empty, the file name is used.</summary>
+        [JsonPropertyName("tooltip")]
+        public string? Tooltip { get; set; }
+
+        /// <summary>
+        /// Optional explicit icon source (.ico / .exe / .dll). When set, this bypasses
+        /// the shell icon extraction from Path (which often fails for .lnk files) and
+        /// is used directly. Environment variables are expanded.
+        /// </summary>
+        [JsonPropertyName("iconPath")]
+        public string? IconPath { get; set; }
+
+        /// <summary>Icon resource index inside IconPath (for .exe/.dll). Default 0.</summary>
+        [JsonPropertyName("iconIndex")]
+        public int IconIndex { get; set; } = 0;
     }
 
     /// <summary>
