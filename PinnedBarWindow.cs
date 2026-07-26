@@ -192,6 +192,14 @@ namespace FlyMenu
             BackColor = bg;
             strip.BackColor = bg;
 
+            int padL = Math.Max(0, config.PaddingLeft);
+            int padR = Math.Max(0, config.PaddingRight);
+            int padT = Math.Max(0, config.PaddingTop);
+            int padB = Math.Max(0, config.PaddingBottom);
+            int padBetween = Math.Max(0, config.PaddingBetween);
+            strip.Padding = new Padding(padL, padT, padR, padB);
+
+            bool first = true;
             foreach (var item in config.Items)
             {
                 if (string.IsNullOrWhiteSpace(item.Path))
@@ -220,15 +228,17 @@ namespace FlyMenu
                         ? item.Tooltip
                         : Path.GetFileNameWithoutExtension(path),
                     Tag = path,
-                    Padding = new Padding(2),
+                    Margin = new Padding(first ? 0 : padBetween, 0, 0, 0),
+                    Padding = new Padding(0),
                 };
                 btn.MouseDown += OnItemMouseDown;
                 strip.Items.Add(btn);
+                first = false;
             }
 
             var preferred = strip.GetPreferredSize(Size.Empty);
-            int width = Math.Max(size + 8, preferred.Width);
-            int height = size + 8;
+            int width = Math.Max(size + padL + padR, preferred.Width);
+            int height = size + padT + padB;
             ClientSize = new Size(width, height);
         }
 

@@ -174,6 +174,12 @@ namespace FlyMenu
             // Check if app menu should be shown
             bool showAppMenu = ConfigLoader.GetShowAppMenu();
 
+            // Reserve vertical space for the pinned bar so it doesn't cover the
+            // menu it sits above. The flyout stays at the very top of the screen;
+            // only the anchor used to place other things (app menu / pinned bar)
+            // is offset downward.
+            int pinnedBarReserve = MeasurePinnedBarHeight();
+
             if (showAppMenu)
             {
                 // Populate app menu
@@ -214,11 +220,12 @@ namespace FlyMenu
                     appMenuX = Math.Max(work.Left, work.Right - appMenuWidth);
                 }
 
-                // Align vertically with flyout, but keep on screen
-                int appMenuY = flyoutBounds.Top;
+                // Align vertically with flyout, plus reserve room for the pinned bar
+                // (the bar sits above the app menu, so push the app menu down by the
+                // bar's height). Flyout is intentionally NOT shifted.
+                int appMenuY = flyoutBounds.Top + pinnedBarReserve;
                 if (appMenuY + appMenuHeight > work.Bottom)
                     appMenuY = Math.Max(work.Top, work.Bottom - appMenuHeight);
-
                 // Show with an explicit direction so WinForms does not auto-flip
                 // horizontally (which caused it to land on top of the flyout when
                 // invoked from the tray icon in the bottom-right corner).
@@ -234,8 +241,11 @@ namespace FlyMenu
             }
             else
             {
-                // Show only flyout menu
-                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
+                // Show only flyout menu. When a pinned bar is enabled, the bar
+                // sits above the flyout, so push the flyout down by the bar's
+                // height to keep the bar within the screen and above the menu.
+                int flyoutY = yPosition + pinnedBarReserve;
+                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, flyoutY, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
 
                 // TASKBAR FIX: Prevent menu from appearing in taskbar
                 PreventTaskbarAppearance(flyoutMenu);
@@ -243,6 +253,20 @@ namespace FlyMenu
                 // Pinned bar (if enabled) anchors above the flyout when there is no app menu
                 ShowPinnedBar(screen, flyoutMenu.Bounds);
             }
+        }
+
+        /// <summary>
+        /// Returns the height (in pixels) the pinned bar would occupy if shown
+        /// with the current config, or 0 if the bar is disabled/empty. Used to
+        /// reserve vertical space above the menus so the bar does not cover them.
+        /// </summary>
+        private static int MeasurePinnedBarHeight()
+        {
+            var cfg = ConfigLoader.GetPinnedBarConfig();
+            if (cfg == null || !cfg.Enabled || cfg.Items == null || cfg.Items.Count == 0)
+                return 0;
+            int size = Math.Max(16, Math.Min(128, cfg.IconSize));
+            return size + Math.Max(0, cfg.PaddingTop) + Math.Max(0, cfg.PaddingBottom);
         }
 
         /// <summary>

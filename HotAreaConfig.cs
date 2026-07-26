@@ -47,6 +47,26 @@ namespace FlyMenu
         [JsonPropertyName("backgroundColor")]
         public string? BackgroundColor { get; set; } = "#F0F0F0";
 
+        /// <summary>Pixels of padding inside the bar, left of the first icon.</summary>
+        [JsonPropertyName("paddingLeft")]
+        public int PaddingLeft { get; set; } = 4;
+
+        /// <summary>Pixels of padding inside the bar, right of the last icon.</summary>
+        [JsonPropertyName("paddingRight")]
+        public int PaddingRight { get; set; } = 4;
+
+        /// <summary>Pixels of padding above the icon row.</summary>
+        [JsonPropertyName("paddingTop")]
+        public int PaddingTop { get; set; } = 4;
+
+        /// <summary>Pixels of padding below the icon row.</summary>
+        [JsonPropertyName("paddingBottom")]
+        public int PaddingBottom { get; set; } = 4;
+
+        /// <summary>Horizontal spacing between adjacent icons, in pixels.</summary>
+        [JsonPropertyName("paddingBetween")]
+        public int PaddingBetween { get; set; } = 2;
+
         /// <summary>
         /// Ordered list of pinned entries. IMPORTANT: point Path at the .lnk shortcut
         /// (not the raw .exe) so Windows groups the launched process under the correct
