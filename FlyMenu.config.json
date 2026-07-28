@@ -28,6 +28,12 @@
     "paddingBetween": 16,
     "menuItems": [
       {
+        "label": "Start",
+        "type": "shortcut",
+        "parameter": "KeyPress(LWin)",
+        "icon": "C:\\path\\icons\\start.ico"
+      },
+      {
         "type": "run",
         "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Outlook (classic).lnk",
         "icon": "C:\\Program Files\\Microsoft Office\\Root\\VFS\\Windows\\Installer\\{90160000-000F-0000-1000-0000000FF1CE}\\outicon.exe"

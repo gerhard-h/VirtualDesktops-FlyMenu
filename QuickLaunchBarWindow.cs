@@ -284,7 +284,7 @@ namespace FlyMenu
                     ToolTipText = !string.IsNullOrWhiteSpace(item.Label)
                         ? item.Label
                         : Path.GetFileNameWithoutExtension(expandedParam),
-                    Tag = expandedParam,
+                    Tag = item,
                     Margin = new Padding(first ? 0 : padBetween, 0, 0, 0),
                     Padding = new Padding(0),
                 };
@@ -643,7 +643,7 @@ namespace FlyMenu
         private void OnItemMouseDown(object? sender, MouseEventArgs e)
         {
             if (sender is not ToolStripButton btn) return;
-            if (btn.Tag is not string path || string.IsNullOrWhiteSpace(path)) return;
+            if (btn.Tag is not MenuItemConfig item) return;
 
             if (e.Button == MouseButtons.Left)
             {
@@ -651,13 +651,38 @@ namespace FlyMenu
                 // destroy this bar window entirely. The next activation will
                 // create a fresh QuickLaunchBarWindow instance in the caller.
                 MenuActionHandler.CloseMenus();
-                LaunchShortcut(path);
-                BeginInvoke(new Action(() => Dispose()));
+                MenuActionHandler.ExecuteMenuAction(item);
+                DisposeSoon();
             }
             else if (e.Button == MouseButtons.Right)
             {
-                ShowContextMenu(path);
+                ShowContextMenu(item);
             }
+        }
+
+        /// <summary>
+        /// Schedules Dispose after the current message loop iteration when possible
+        /// (so we don't tear down the button that's still handling MouseDown).
+        /// Falls back to an immediate Dispose if the window handle is gone -
+        /// which can happen when the launched action (e.g. LWin shortcut)
+        /// destroys/deactivates us synchronously.
+        /// </summary>
+        private void DisposeSoon()
+        {
+            if (IsDisposed) return;
+            if (IsHandleCreated)
+            {
+                try
+                {
+                    BeginInvoke(new Action(() => { if (!IsDisposed) Dispose(); }));
+                    return;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Handle went away between the check and the call - fall through.
+                }
+            }
+            Dispose();
         }
 
         private static void LaunchShortcut(string path)
@@ -693,30 +718,42 @@ namespace FlyMenu
             }
         }
 
-        private void ShowContextMenu(string path)
+        private void ShowContextMenu(MenuItemConfig item)
         {
             var ctx = new ContextMenuStrip();
 
             ctx.Items.Add("Open", null, (s, e) =>
             {
                 MenuActionHandler.CloseMenus();
-                LaunchShortcut(path);
-                BeginInvoke(new Action(() => Dispose()));
+                MenuActionHandler.ExecuteMenuAction(item);
+                DisposeSoon();
             });
 
-            ctx.Items.Add("Open file location", null, (s, e) =>
+            // The remaining actions only make sense when the parameter points
+            // at a real on-disk path (typically type=="run").
+            string? pathParam = null;
+            if (!string.IsNullOrWhiteSpace(item.Parameter))
             {
-                try
+                var expanded = Environment.ExpandEnvironmentVariables(item.Parameter!);
+                if (File.Exists(expanded)) pathParam = expanded;
+            }
+
+            if (pathParam != null)
+            {
+                ctx.Items.Add("Open file location", null, (s, e) =>
                 {
-                    Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
-                }
-                catch (Exception ex) { Debug.WriteLine(ex.Message); }
-            });
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{pathParam}\"") { UseShellExecute = true });
+                    }
+                    catch (Exception ex) { Debug.WriteLine(ex.Message); }
+                });
 
-            ctx.Items.Add("Copy path", null, (s, e) =>
-            {
-                try { Clipboard.SetText(path); } catch { }
-            });
+                ctx.Items.Add("Copy path", null, (s, e) =>
+                {
+                    try { Clipboard.SetText(pathParam); } catch { }
+                });
+            }
 
             ctx.Show(Cursor.Position);
         }
