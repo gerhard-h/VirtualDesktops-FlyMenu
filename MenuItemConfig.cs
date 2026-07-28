@@ -20,6 +20,13 @@ namespace FlyMenu
         public string? Icon { get; set; }
 
         /// <summary>
+        /// Optional icon resource index inside <see cref="Icon"/> when it points
+        /// at a multi-icon container (.exe / .dll). Ignored for .ico files.
+        /// </summary>
+        [JsonPropertyName("iconIndex")]
+        public int IconIndex { get; set; } = 0;
+
+        /// <summary>
         /// When true, the menu is reopened at its previous position after the
         /// action executes (so the user can click again without re-triggering
         /// the hot area). Default: false.

@@ -162,6 +162,9 @@ namespace FlyMenu
         /// </summary>
         private void ShowMenus(Point cursor, Screen screen, int yPosition, HotAreaConfig hotArea, bool moveCursor = true)
         {
+            if (!ConfigLoader.GetFlyoutMenuEnabled())
+                return;
+
             // Remember args so "keepOpen" actions can reopen the menu at the same spot.
             lastShowCursor = cursor;
             lastShowScreen = screen;
@@ -263,7 +266,7 @@ namespace FlyMenu
         private static int MeasurePinnedBarHeight()
         {
             var cfg = ConfigLoader.GetPinnedBarConfig();
-            if (cfg == null || !cfg.Enabled || cfg.Items == null || cfg.Items.Count == 0)
+            if (cfg == null || !cfg.Enabled || cfg.MenuItems == null || cfg.MenuItems.Count == 0)
                 return 0;
             int size = Math.Max(16, Math.Min(128, cfg.IconSize));
             return size + Math.Max(0, cfg.PaddingTop) + Math.Max(0, cfg.PaddingBottom);
@@ -284,7 +287,7 @@ namespace FlyMenu
             DestroyPinnedBar();
 
             var cfg = ConfigLoader.GetPinnedBarConfig();
-            bool enabled = cfg != null && cfg.Enabled && cfg.Items != null && cfg.Items.Count > 0;
+            bool enabled = cfg != null && cfg.Enabled && cfg.MenuItems != null && cfg.MenuItems.Count > 0;
             if (!enabled) return;
 
             pinnedBar = new PinnedBarWindow();
@@ -391,7 +394,7 @@ namespace FlyMenu
             SyncHotAreaIndicators(hotArea);
 
             // Calculate if cursor is in hot area
-            bool isInHotArea = IsInHotArea(cursor, screen, hotArea);
+            bool isInHotArea = hotArea.Enabled && IsInHotArea(cursor, screen, hotArea);
 
             // Update continuous mouse catching if enabled
             MenuUIHelper.UpdateMouseCatch();
@@ -481,7 +484,9 @@ namespace FlyMenu
         /// </summary>
         private void SyncHotAreaIndicators(HotAreaConfig hotArea)
         {
-            var allowedScreens = Screen.AllScreens.Where(s => IsMonitorAllowed(s, hotArea)).ToList();
+            var allowedScreens = hotArea.Enabled
+                ? Screen.AllScreens.Where(s => IsMonitorAllowed(s, hotArea)).ToList()
+                : new List<Screen>();
 
             // Grow to match count
             while (hotAreaIndicators.Count < allowedScreens.Count)

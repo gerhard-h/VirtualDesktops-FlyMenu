@@ -37,7 +37,7 @@
     <None Update="FlyCtl.ahk">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="FlyMenu.config">
+    <None Update="FlyMenu.config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="icons\development-scheme.ico">

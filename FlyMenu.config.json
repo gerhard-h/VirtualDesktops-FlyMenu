@@ -1,0 +1,226 @@
+{
+  "hotArea": {
+    "enabled": true,
+    "edge": "top", /* top right left bottom of primary monitor*/
+    "triggerHeight": 2, /* amount of pixels to trigger the menu*/
+    "startPercentage": 17, /* only trigger the menu on some part of the screen edge start default=0  */
+    "endPercentage": 25, /* only trigger the menu on some part of the screen edge end  default=100 */
+    "catchMouse": true, /* stop mouse from sliding of the menu, most useful for edge=top to ensure the first menu item is selected */
+    "catchHeight": 15, /* amount of pixels to reset the mouse to */
+    "indicatorHeight": 11, /* pixels; 0 disables */
+    "indicatorColor": "#1B5E20", /* named color or #RRGGBB / #AARRGGBB green #1B5E20 orange #FFD800**/
+    "indicatorOpacity": 0.3, /* 0.0 - 1.0 */
+    "indicatorCornerRadius": 8,
+    "monitors": [ 1 ] /* [1] only Monitor 1 (Primary), [] = all Monitors, [1,3] ... */
+  },
+  "styling": {
+    "fontName": "Segoe UI",
+    "fontSize": 10
+  },
+  "pinnedBar": {
+    "enabled": true,
+    "iconSize": 48,
+    "backgroundColor": "#171717",
+    "paddingLeft": 16,
+    "paddingRight": 8,
+    "paddingTop": 8,
+    "paddingBottom": 14,
+    "paddingBetween": 16,
+    "menuItems": [
+      {
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Outlook (classic).lnk",
+        "icon": "C:\\Program Files\\Microsoft Office\\Root\\VFS\\Windows\\Installer\\{90160000-000F-0000-1000-0000000FF1CE}\\outicon.exe"
+      },
+      {
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Directory Opus.lnk",
+        "icon": "C:\\Program Files\\GPSoftware\\Directory Opus\\dopus.exe"
+      },
+      {
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\ConEmu64.lnk",
+        "icon": "C:\\path\\icons\\cmder_green.ico"
+      },
+      {
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Firefox.lnk",
+        "icon": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
+      },
+      {
+        "tooltip": "Notepad++",
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Notepad++.lnk",
+        "icon": "C:\\Users\\heideg\\scoop\\apps\\notepadplusplus\\current\\notepad++.exe"
+      },
+      {
+        "tooltip": "Excel",
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Excel.lnk",
+        "icon": "C:\\Program Files\\Microsoft Office\\Root\\VFS\\Windows\\Installer\\{90160000-000F-0000-1000-0000000FF1CE}\\xlicons.exe"
+      },
+      {
+        "tooltip": "Visual Studio Code",
+        "type": "run",
+        "parameter": "C:\\Users\\heideg\\AppData\\Roaming\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Visual Studio Code P.lnk",
+        "icon": "C:\\Program Files\\Microsoft VS Code\\Code.exe"
+      },
+      {
+        "tooltip": "M365 Copilot",
+        "type": "run",
+        "parameter": "shell:AppsFolder\\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe!Microsoft.MicrosoftOfficeHub",
+        "icon": "C:\\path\\icons\\copilotscale-200.ico"
+      },
+      {
+        "tooltip": "Visual Studio 2019",
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Visual Studio 2019.lnk",
+        "icon": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Professional\\Common7\\IDE\\devenv.exe"
+      },
+      {
+        "tooltip": "Visual Studio 2022",
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Visual Studio 2022.lnk",
+        "icon": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\Common7\\IDE\\devenv.exe"
+      },
+      {
+        "tooltip": "Visual Studio 2026",
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Visual Studio.lnk",
+        "icon": "D:\\VS2026\\Microsoft Visual Studio\\18\\Professional\\Common7\\IDE\\devenv.exe"
+      },
+      {
+        "type": "run",
+        "parameter": "%AppData%\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Fences Anzeigen.lnk",
+        "icon": "C:\\program files (x86)\\stardock\\fences\\Fences.exe"
+      },
+      {
+        "type": "run",
+        "parameter": "C:\\Users\\heideg\\AppData\\Roaming\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\FortiClient VPN.lnk",
+        "icon": "C:\\Windows\\Installer\\{FF46D152-9845-4ACE-8258-DBA7E3BE9785}\\Icon_FCTLogo"
+      },
+      {
+        "tooltip": "eM Client",
+        "type": "run",
+        "parameter": "C:\\Program Files (x86)\\eM Client\\MailClient.exe"
+      }
+    ]
+  },
+  "runningApplicationsMenu": {
+    "enabled": false, /* Shows a second menu with running applications next to the desktop menu (no gap) */
+    "defaultAppSortOrder": "lastused" /* lastused|alpha */
+  },
+  "flyoutMenu": {
+    "enabled": true,
+    "menuItems": [
+      {
+        "label": "Latest Desktop (%i)", /* shows the desktop you were last on (befor the current)*/
+        "type": "switch before",
+        "parameter": "",
+        "icon": "preferences-desktop-wallpaper-2.ico"
+      },
+      {
+        "label": "DESKTOP LIST", /* shows a list of all desktops to switch to */
+        "type": "switch to",
+        "parameter": "%id%"
+      },
+      {
+        "label": "Next Desktop", /* switches to the next desktop with rollover from last to first */
+        "type": "switch right",
+        "parameter": "",
+        "icon": "go-next-7.ico",
+        "keepOpen": true
+      },
+      {
+        "label": "Prev Desktop", /* switches to the previous desktop with rollover from first to last */
+        "type": "switch left",
+        "parameter": "",
+        "icon": "go-previous-7.ico",
+        "keepOpen": true
+      },
+      {
+        "label": "Desktop",
+        "type": "shortcut",
+        "parameter": "ModifiedKeyStroke(LWIN, VK_D)",
+        "icon": "preferences-desktop-wallpaper-5.ico"
+      },
+      {
+        "label": "PrintScreen",
+        "type": "run",
+        "parameter": "sharex -workflow \"Capture region\"",
+        "icon": "image-x-generic.ico"
+      },
+      {
+        "label": "PrintScreen Edit",
+        "type": "run",
+        "parameter": "sharex -workflow aufnahme",
+        "icon": "kpaint.ico"
+      },
+      {
+        "label": "Keepass",
+        "type": "run",
+        "parameter": "C:\\Users\\heideg\\scoop\\shims\\keepassxc.exe",
+        "icon": "C:\\path\\icons\\keepass.ico"
+      },
+      {
+        "label": "More",
+        "type": "shortcut",
+        "parameter": "ModifiedKeyStroke(LCONTROL LMENU, VK_N)", /* ModifiedKeyStroke(LWIN LSHIFT, VK_T) First space separated list of Modifiers KOMMA list of Keys Keynames matches https://github.com/GregsStack/InputSimulatorStandard */
+        /*Caution: LALT is called LMENU in this library*/
+        "icon": "gdm.ico"
+      },
+      {
+        "label": "Win+Tab",
+        "type": "shortcut",
+        "parameter": "ModifiedKeyStroke(LWIN, TAB)",
+        "icon": "kllckety.ico"
+      },
+      {
+        "label": "Win+H",
+        "type": "shortcut",
+        "parameter": "ModifiedKeyStroke(LWIN, VK_H)",
+        "icon": "audio-input-microphone-4.ico"
+      },
+      {
+        "label": "C+S+F",
+        "type": "shortcut",
+        "parameter": "ModifiedKeyStroke(LSHIFT LCONTROL, VK_F)",
+        "icon": "zoom-2.ico"
+      },
+      {
+        "label": "C+A+F find all",
+        "type": "shortcut",
+        "parameter": "ModifiedKeyStroke(LMENU LCONTROL, VK_F)",
+        "icon": "kfind.ico"
+      },
+      {
+        "label": "OCR W+S+O",
+        "type": "shortcut",
+        "parameter": "ModifiedKeyStroke(LWIN LSHIFT, VK_O)",
+        "icon": "character-set.ico"
+      },
+      {
+        "label": "F3",
+        "type": "shortcut",
+        "parameter": "KeyPress(F3)",
+        "icon": "preferences-desktop-keyboard-shortcuts.ico"
+      },
+      {
+        "label": "F9",
+        "type": "shortcut",
+        "parameter": "KeyPress(F9)",
+        "icon": "preferences-desktop-keyboard-shortcuts.ico"
+      },
+      /* reload not implemented {
+        "label": "reload",
+        "type": "run",
+        "parameter": "c:\\path\\fly\\flyctl.exe reload"
+        }, */
+      {
+        "label": "exit", /* exit the menu */
+        "type": "exit",
+        "parameter": ""
+      }
+    ]
+  }
+}

@@ -27,11 +27,10 @@ namespace FlyMenu
 
             try
             {
-                string resolvedPath = ResolveIconPath(iconPath);
-
-                if (File.Exists(resolvedPath))
+                var bmp = IconLoader.LoadBitmap(iconPath, 0, 16);
+                if (bmp != null)
                 {
-                    menuItem.Image = new Icon(resolvedPath).ToBitmap();
+                    menuItem.Image = bmp;
                 }
             }
             catch

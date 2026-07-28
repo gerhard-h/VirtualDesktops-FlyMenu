@@ -5,7 +5,7 @@ using WindowsDesktop;
 namespace FlyMenu
 {
     /// <summary>
-    /// Handles loading and parsing the FlyMenu.config file
+    /// Handles loading and parsing the FlyMenu.config.json file
     /// </summary>
     internal static class ConfigLoader
     {
@@ -28,7 +28,7 @@ namespace FlyMenu
         private static string? lastReportedError = null;
 
         /// <summary>
-        /// Loads the complete FlyMenu configuration from FlyMenu.config file
+        /// Loads the complete FlyMenu configuration from FlyMenu.config.json file
         /// </summary>
         public static FlyMenuConfig LoadConfig()
         {
@@ -54,7 +54,7 @@ namespace FlyMenu
 
             try
             {
-                var configPath = Path.Combine(AppContext.BaseDirectory, "FlyMenu.config");
+                var configPath = Path.Combine(AppContext.BaseDirectory, "FlyMenu.config.json");
                 if (!File.Exists(configPath))
                 {
                     ReportConfigErrorOnce(configPath, DateTime.MinValue,
@@ -80,7 +80,7 @@ namespace FlyMenu
                 catch (JsonException jsonEx)
                 {
                     ReportConfigErrorOnce(configPath, fileWriteTime,
-                        $"JSON parsing error in FlyMenu.config:\n{jsonEx.Message}\n\nLine: {jsonEx.LineNumber}, Byte Position: {jsonEx.BytePositionInLine}",
+                        $"JSON parsing error in FlyMenu.config.json:\n{jsonEx.Message}\n\nLine: {jsonEx.LineNumber}, Byte Position: {jsonEx.BytePositionInLine}",
                         "JSON Error");
                     return CacheAndReturn(GetDefaultConfig());
                 }
@@ -97,15 +97,17 @@ namespace FlyMenu
                 // Apply defaults if sections are missing
                 config.HotArea ??= new HotAreaConfig();
                 config.Styling ??= new StylingConfig();
-                config.MenuItems ??= new List<MenuItemConfig>();
+                config.FlyoutMenu ??= new FlyoutMenuConfig();
+                config.FlyoutMenu.MenuItems ??= new List<MenuItemConfig>();
+                config.RunningApplicationsMenu ??= new RunningApplicationsMenuConfig();
 
                 // Validate hot area settings
                 ValidateHotArea(config.HotArea);
 
                 // Expand "DESKTOP LIST" placeholder with actual desktops
                 System.Diagnostics.Debug.WriteLine("ConfigLoader: Expanding desktop list...");
-                ExpandDesktopList(config.MenuItems);
-                System.Diagnostics.Debug.WriteLine($"ConfigLoader: After expansion, menu has {config.MenuItems.Count} items");
+                ExpandDesktopList(config.FlyoutMenu.MenuItems);
+                System.Diagnostics.Debug.WriteLine($"ConfigLoader: After expansion, menu has {config.FlyoutMenu.MenuItems.Count} items");
 
                 // Cache the expanded config
                 cachedConfig = config;
@@ -126,7 +128,7 @@ namespace FlyMenu
         public static List<MenuItemConfig> LoadMenuConfigs()
         {
             var config = LoadConfig();
-            return config.MenuItems ?? new List<MenuItemConfig>();
+            return config.FlyoutMenu?.MenuItems ?? new List<MenuItemConfig>();
         }
 
         /// <summary>
@@ -147,13 +149,25 @@ namespace FlyMenu
             return config.Styling ?? new StylingConfig();
         }
 
+        /// <summary>Gets whether the flyout (main) menu is enabled.</summary>
+        public static bool GetFlyoutMenuEnabled()
+        {
+            return LoadConfig().FlyoutMenu?.Enabled ?? true;
+        }
+
+        /// <summary>Gets whether the hot area (trigger) is enabled.</summary>
+        public static bool GetHotAreaEnabled()
+        {
+            return LoadConfig().HotArea?.Enabled ?? true;
+        }
+
         /// <summary>
-        /// Gets whether to show the app menu
+        /// Gets whether to show the running-applications menu.
         /// </summary>
         public static bool GetShowAppMenu()
         {
             var config = LoadConfig();
-            return config.ShowAppMenu;
+            return config.RunningApplicationsMenu?.Enabled ?? false;
         }
 
         /// <summary>Gets the pinned-bar configuration (may be null / disabled).</summary>
@@ -163,13 +177,13 @@ namespace FlyMenu
         }
 
         /// <summary>
-        /// Gets the default sort order for the app menu.
+        /// Gets the default sort order for the running-applications menu.
         /// Returns true if alphabetical, false if last-used (Z-order).
         /// </summary>
         public static bool GetDefaultAppSortAlphabetical()
         {
             var config = LoadConfig();
-            var value = config.DefaultAppSortOrder?.Trim().ToLowerInvariant();
+            var value = config.RunningApplicationsMenu?.DefaultAppSortOrder?.Trim().ToLowerInvariant();
             // "lastused" / "last-used" / "last_used" / "zorder" => false, otherwise alphabetical
             return value switch
             {
@@ -196,8 +210,12 @@ namespace FlyMenu
                     FontName = "Segoe UI",
                     FontSize = 9
                 },
-                ShowAppMenu = false,
-                MenuItems = new List<MenuItemConfig>()
+                FlyoutMenu = new FlyoutMenuConfig
+                {
+                    Enabled = true,
+                    MenuItems = new List<MenuItemConfig>()
+                },
+                RunningApplicationsMenu = new RunningApplicationsMenuConfig()
             };
         }
 

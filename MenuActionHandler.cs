@@ -245,14 +245,29 @@ namespace FlyMenu
                     return;
                 }
 
-                var (file, args) = ParseCommandLine(param);
-                var psi = new ProcessStartInfo
+                ProcessStartInfo psi;
+
+                // shell:AppsFolder\... and other shell:... paths must be resolved by
+                // explorer.exe; ShellExecuteEx does not accept them directly.
+                if (param.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
                 {
-                    FileName = file,
-                    Arguments = args,
-                    UseShellExecute = true,
-                    WorkingDirectory = AppContext.BaseDirectory
-                };
+                    psi = new ProcessStartInfo("explorer.exe", $"\"{param}\"")
+                    {
+                        UseShellExecute = true,
+                        WorkingDirectory = AppContext.BaseDirectory,
+                    };
+                }
+                else
+                {
+                    var (file, args) = ParseCommandLine(param);
+                    psi = new ProcessStartInfo
+                    {
+                        FileName = file,
+                        Arguments = args,
+                        UseShellExecute = true,
+                        WorkingDirectory = AppContext.BaseDirectory
+                    };
+                }
 
                 Process.Start(psi);
             }

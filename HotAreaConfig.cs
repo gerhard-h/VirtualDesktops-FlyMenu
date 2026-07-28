@@ -12,22 +12,41 @@ namespace FlyMenu
         [JsonPropertyName("styling")]
         public StylingConfig? Styling { get; set; }
 
-        [JsonPropertyName("showAppMenu")]
-        public bool ShowAppMenu { get; set; } = false;
+        /// <summary>Optional pinned-programs bar shown above the running-programs menu.</summary>
+        [JsonPropertyName("pinnedBar")]
+        public PinnedBarConfig? PinnedBar { get; set; }
+
+        /// <summary>Running-applications menu (formerly showAppMenu/appMenu).</summary>
+        [JsonPropertyName("runningApplicationsMenu")]
+        public RunningApplicationsMenuConfig? RunningApplicationsMenu { get; set; }
+
+        /// <summary>Main flyout (desktop) menu shown at the hot area.</summary>
+        [JsonPropertyName("flyoutMenu")]
+        public FlyoutMenuConfig? FlyoutMenu { get; set; }
+    }
+
+    /// <summary>Configuration for the flyout (main) menu.</summary>
+    public class FlyoutMenuConfig
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = true;
+
+        [JsonPropertyName("menuItems")]
+        public List<MenuItemConfig>? MenuItems { get; set; }
+    }
+
+    /// <summary>Configuration for the running-applications side menu.</summary>
+    public class RunningApplicationsMenuConfig
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = false;
 
         /// <summary>
-        /// Default sort order for the running programs (app) menu.
+        /// Default sort order for the running programs menu.
         /// Valid values: "alpha" (alphabetical) or "lastused" (Z-order / last used).
         /// </summary>
         [JsonPropertyName("defaultAppSortOrder")]
         public string DefaultAppSortOrder { get; set; } = "lastused";
-
-        [JsonPropertyName("menuItems")]
-        public List<MenuItemConfig>? MenuItems { get; set; }
-
-        /// <summary>Optional pinned-programs bar shown above the running-programs menu.</summary>
-        [JsonPropertyName("pinnedBar")]
-        public PinnedBarConfig? PinnedBar { get; set; }
     }
 
     /// <summary>Pinned-programs bar configuration.</summary>
@@ -68,41 +87,21 @@ namespace FlyMenu
         public int PaddingBetween { get; set; } = 2;
 
         /// <summary>
-        /// Ordered list of pinned entries. IMPORTANT: point Path at the .lnk shortcut
-        /// (not the raw .exe) so Windows groups the launched process under the correct
-        /// taskbar pin via the shortcut's AppUserModelID.
+        /// Ordered list of pinned entries. Same shape as regular <see cref="MenuItemConfig"/>
+        /// entries: type/parameter drive the launch action, icon/iconIndex drive the visual.
+        /// Typical: type=&quot;run&quot;, parameter=&quot;C:\...\Foo.lnk&quot; or a shell:AppsFolder path.
         /// </summary>
-        [JsonPropertyName("items")]
-        public List<PinnedItemConfig>? Items { get; set; }
+        [JsonPropertyName("menuItems")]
+        public List<MenuItemConfig>? MenuItems { get; set; }
     }
-
-    public class PinnedItemConfig
-    {
-        [JsonPropertyName("path")]
-        public string? Path { get; set; }
-
-        /// <summary>Optional tooltip override. If empty, the file name is used.</summary>
-        [JsonPropertyName("tooltip")]
-        public string? Tooltip { get; set; }
-
-        /// <summary>
-        /// Optional explicit icon source (.ico / .exe / .dll). When set, this bypasses
-        /// the shell icon extraction from Path (which often fails for .lnk files) and
-        /// is used directly. Environment variables are expanded.
-        /// </summary>
-        [JsonPropertyName("iconPath")]
-        public string? IconPath { get; set; }
-
-        /// <summary>Icon resource index inside IconPath (for .exe/.dll). Default 0.</summary>
-        [JsonPropertyName("iconIndex")]
-        public int IconIndex { get; set; } = 0;
-    }
-
     /// <summary>
     /// Configuration for the hot area (trigger zone for the menu)
     /// </summary>
     public class HotAreaConfig
     {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = true;
+
         [JsonPropertyName("edge")]
         public string? Edge { get; set; } = "top";
 

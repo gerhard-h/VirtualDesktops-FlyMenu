@@ -139,6 +139,49 @@ namespace FlyMenu
             base.WndProc(ref m);
         }
 
+        /// <summary>
+        /// Extracts the first token of a run-parameter as a file path candidate:
+        ///   "C:\path\app.exe arg1 arg2" -> "C:\path\app.exe"
+        ///   "\"C:\path with spaces\app.exe\" arg" -> "C:\path with spaces\app.exe"
+        /// Returns null for anything that isn't a plausible on-disk path
+        /// (shell: paths, URI protocols like microsoft-copilot:, bare tokens
+        /// without a directory separator).
+        /// </summary>
+        private static string? ExtractFirstPathToken(string parameter)
+        {
+            if (string.IsNullOrWhiteSpace(parameter)) return null;
+            var p = parameter.Trim();
+
+            if (p.StartsWith("shell:", StringComparison.OrdinalIgnoreCase)) return null;
+
+            string token;
+            if (p.StartsWith("\""))
+            {
+                int endQuote = p.IndexOf('"', 1);
+                if (endQuote <= 1) return null;
+                token = p.Substring(1, endQuote - 1);
+            }
+            else
+            {
+                int idx = p.IndexOf(' ');
+                token = idx > 0 ? p.Substring(0, idx) : p;
+            }
+
+            // Filter out URI schemes like "microsoft-copilot:" (colon not at index 1,
+            // i.e. not "C:\..." style drive letter).
+            int colon = token.IndexOf(':');
+            if (colon > 1) return null;
+
+            // Require some sign of a real path
+            if (!token.Contains(Path.DirectorySeparatorChar) &&
+                !token.Contains(Path.AltDirectorySeparatorChar))
+            {
+                return null;
+            }
+
+            return token;
+        }
+
         private static Color ParseColor(string? value, Color fallback)
         {
             if (string.IsNullOrWhiteSpace(value)) return fallback;
@@ -182,7 +225,7 @@ namespace FlyMenu
             ownedBitmaps.Clear();
             strip.Items.Clear();
 
-            if (config?.Items == null || config.Items.Count == 0)
+            if (config?.MenuItems == null || config.MenuItems.Count == 0)
                 return;
 
             int size = Math.Max(16, Math.Min(128, config.IconSize));
@@ -200,22 +243,36 @@ namespace FlyMenu
             strip.Padding = new Padding(padL, padT, padR, padB);
 
             bool first = true;
-            foreach (var item in config.Items)
+            foreach (var item in config.MenuItems)
             {
-                if (string.IsNullOrWhiteSpace(item.Path))
+                string? parameter = item.Parameter;
+                if (string.IsNullOrWhiteSpace(parameter))
                     continue;
 
-                string path = Environment.ExpandEnvironmentVariables(item.Path);
+                string expandedParam = Environment.ExpandEnvironmentVariables(parameter);
+
+                // Icon resolution: explicit item.Icon wins. If empty and this is a
+                // run action whose parameter starts with a real file path, use that
+                // file as the icon source (typical: parameter="C:\...\Foo.exe args").
                 Bitmap? bmp = null;
-                if (!string.IsNullOrWhiteSpace(item.IconPath))
+                if (!string.IsNullOrWhiteSpace(item.Icon))
                 {
-                    string iconPath = Environment.ExpandEnvironmentVariables(item.IconPath);
-                    bmp = TryLoadIconFromFile(iconPath, item.IconIndex, size);
+                    bmp = IconLoader.LoadBitmap(item.Icon, item.IconIndex, size);
                     if (bmp == null)
-                        Debug.WriteLine($"PinnedBar iconPath failed, falling back to shell for '{path}' (iconPath='{iconPath}')");
+                        Debug.WriteLine($"PinnedBar icon failed, falling back to shell for '{expandedParam}' (icon='{item.Icon}')");
+                }
+                if (bmp == null &&
+                    string.Equals(item.Type, "run", StringComparison.OrdinalIgnoreCase))
+                {
+                    string? firstToken = ExtractFirstPathToken(expandedParam);
+                    if (!string.IsNullOrEmpty(firstToken) && File.Exists(firstToken))
+                    {
+                        bmp = IconLoader.LoadBitmap(firstToken, item.IconIndex, size)
+                              ?? IconLoader.LoadShellIconBitmap(firstToken, size);
+                    }
                 }
                 if (bmp == null)
-                    bmp = TryLoadIconBitmap(path, size);
+                    bmp = IconLoader.LoadShellIconBitmap(expandedParam, size);
                 if (bmp != null) ownedBitmaps.Add(bmp);
 
                 var btn = new ToolStripButton
@@ -224,10 +281,10 @@ namespace FlyMenu
                     ImageScaling = ToolStripItemImageScaling.SizeToFit,
                     Image = bmp,
                     AutoToolTip = false,
-                    ToolTipText = !string.IsNullOrWhiteSpace(item.Tooltip)
-                        ? item.Tooltip
-                        : Path.GetFileNameWithoutExtension(path),
-                    Tag = path,
+                    ToolTipText = !string.IsNullOrWhiteSpace(item.Label)
+                        ? item.Label
+                        : Path.GetFileNameWithoutExtension(expandedParam),
+                    Tag = expandedParam,
                     Margin = new Padding(first ? 0 : padBetween, 0, 0, 0),
                     Padding = new Padding(0),
                 };
