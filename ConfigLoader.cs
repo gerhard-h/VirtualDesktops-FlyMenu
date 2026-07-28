@@ -97,8 +97,8 @@ namespace FlyMenu
                 // Apply defaults if sections are missing
                 config.HotArea ??= new HotAreaConfig();
                 config.Styling ??= new StylingConfig();
-                config.FlyoutMenu ??= new FlyoutMenuConfig();
-                config.FlyoutMenu.MenuItems ??= new List<MenuItemConfig>();
+                config.QuickLaunchMenu ??= new QuickLaunchMenuConfig();
+                config.QuickLaunchMenu.MenuItems ??= new List<MenuItemConfig>();
                 config.RunningApplicationsMenu ??= new RunningApplicationsMenuConfig();
 
                 // Validate hot area settings
@@ -106,8 +106,8 @@ namespace FlyMenu
 
                 // Expand "DESKTOP LIST" placeholder with actual desktops
                 System.Diagnostics.Debug.WriteLine("ConfigLoader: Expanding desktop list...");
-                ExpandDesktopList(config.FlyoutMenu.MenuItems);
-                System.Diagnostics.Debug.WriteLine($"ConfigLoader: After expansion, menu has {config.FlyoutMenu.MenuItems.Count} items");
+                ExpandDesktopList(config.QuickLaunchMenu.MenuItems);
+                System.Diagnostics.Debug.WriteLine($"ConfigLoader: After expansion, menu has {config.QuickLaunchMenu.MenuItems.Count} items");
 
                 // Cache the expanded config
                 cachedConfig = config;
@@ -128,7 +128,7 @@ namespace FlyMenu
         public static List<MenuItemConfig> LoadMenuConfigs()
         {
             var config = LoadConfig();
-            return config.FlyoutMenu?.MenuItems ?? new List<MenuItemConfig>();
+            return config.QuickLaunchMenu?.MenuItems ?? new List<MenuItemConfig>();
         }
 
         /// <summary>
@@ -150,9 +150,9 @@ namespace FlyMenu
         }
 
         /// <summary>Gets whether the flyout (main) menu is enabled.</summary>
-        public static bool GetFlyoutMenuEnabled()
+        public static bool GetQuickLaunchMenuEnabled()
         {
-            return LoadConfig().FlyoutMenu?.Enabled ?? true;
+            return LoadConfig().QuickLaunchMenu?.Enabled ?? true;
         }
 
         /// <summary>Gets whether the hot area (trigger) is enabled.</summary>
@@ -171,9 +171,9 @@ namespace FlyMenu
         }
 
         /// <summary>Gets the pinned-bar configuration (may be null / disabled).</summary>
-        public static PinnedBarConfig? GetPinnedBarConfig()
+        public static QuickLaunchBarConfig? GetQuickLaunchBarConfig()
         {
-            return LoadConfig().PinnedBar;
+            return LoadConfig().QuickLaunchBar;
         }
 
         /// <summary>
@@ -210,7 +210,7 @@ namespace FlyMenu
                     FontName = "Segoe UI",
                     FontSize = 9
                 },
-                FlyoutMenu = new FlyoutMenuConfig
+                QuickLaunchMenu = new QuickLaunchMenuConfig
                 {
                     Enabled = true,
                     MenuItems = new List<MenuItemConfig>()

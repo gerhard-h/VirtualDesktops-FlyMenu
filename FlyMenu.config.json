@@ -17,7 +17,7 @@
     "fontName": "Segoe UI",
     "fontSize": 10
   },
-  "pinnedBar": {
+  "QuickLaunchBar": {
     "enabled": true,
     "iconSize": 48,
     "backgroundColor": "#171717",
@@ -107,10 +107,10 @@
     ]
   },
   "runningApplicationsMenu": {
-    "enabled": false, /* Shows a second menu with running applications next to the desktop menu (no gap) */
+    "enabled": true, /* Shows a second menu with running applications next to the desktop menu (no gap) */
     "defaultAppSortOrder": "lastused" /* lastused|alpha */
   },
-  "flyoutMenu": {
+  "QuickLaunchMenu": {
     "enabled": true,
     "menuItems": [
       {

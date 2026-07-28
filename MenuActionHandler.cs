@@ -11,7 +11,7 @@ namespace FlyMenu
     internal static class MenuActionHandler
     {
         // Store references to menus so we can close them before actions execute
-        private static ContextMenuStrip? flyoutMenu;
+        private static ContextMenuStrip? QuickLaunchMenu;
         private static ContextMenuStrip? appMenu;
 
         /// <summary>
@@ -19,7 +19,7 @@ namespace FlyMenu
         /// </summary>
         public static void SetMenuReferences(ContextMenuStrip? flyout, ContextMenuStrip? app)
         {
-            flyoutMenu = flyout;
+            QuickLaunchMenu = flyout;
             appMenu = app;
         }
 
@@ -30,7 +30,7 @@ namespace FlyMenu
         {
             try
             {
-                flyoutMenu?.Close();
+                QuickLaunchMenu?.Close();
                 appMenu?.Close();
             }
             catch

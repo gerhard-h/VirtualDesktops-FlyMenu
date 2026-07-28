@@ -13,20 +13,20 @@ namespace FlyMenu
         public StylingConfig? Styling { get; set; }
 
         /// <summary>Optional pinned-programs bar shown above the running-programs menu.</summary>
-        [JsonPropertyName("pinnedBar")]
-        public PinnedBarConfig? PinnedBar { get; set; }
+        [JsonPropertyName("QuickLaunchBar")]
+        public QuickLaunchBarConfig? QuickLaunchBar { get; set; }
 
         /// <summary>Running-applications menu (formerly showAppMenu/appMenu).</summary>
         [JsonPropertyName("runningApplicationsMenu")]
         public RunningApplicationsMenuConfig? RunningApplicationsMenu { get; set; }
 
         /// <summary>Main flyout (desktop) menu shown at the hot area.</summary>
-        [JsonPropertyName("flyoutMenu")]
-        public FlyoutMenuConfig? FlyoutMenu { get; set; }
+        [JsonPropertyName("QuickLaunchMenu")]
+        public QuickLaunchMenuConfig? QuickLaunchMenu { get; set; }
     }
 
     /// <summary>Configuration for the flyout (main) menu.</summary>
-    public class FlyoutMenuConfig
+    public class QuickLaunchMenuConfig
     {
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; } = true;
@@ -50,7 +50,7 @@ namespace FlyMenu
     }
 
     /// <summary>Pinned-programs bar configuration.</summary>
-    public class PinnedBarConfig
+    public class QuickLaunchBarConfig
     {
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; } = false;

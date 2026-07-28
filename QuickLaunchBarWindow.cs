@@ -18,7 +18,7 @@ namespace FlyMenu
     /// Windows' perspective it never becomes the "current" application and clicking
     /// it does not steal focus from the app the user is working with.
     /// </summary>
-    internal sealed class PinnedBarWindow : Form
+    internal sealed class QuickLaunchBarWindow : Form
     {
         private const int WS_EX_NOACTIVATE = 0x08000000;
         private const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -94,7 +94,7 @@ namespace FlyMenu
         private readonly List<Icon> ownedIcons = new List<Icon>();
         private readonly List<Bitmap> ownedBitmaps = new List<Bitmap>();
 
-        public PinnedBarWindow()
+        public QuickLaunchBarWindow()
         {
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
@@ -211,7 +211,7 @@ namespace FlyMenu
         }
 
         /// <summary>Rebuilds the bar contents from the given config.</summary>
-        public void Rebuild(PinnedBarConfig config)
+        public void Rebuild(QuickLaunchBarConfig config)
         {
             foreach (var i in ownedIcons)
             {
@@ -259,7 +259,7 @@ namespace FlyMenu
                 {
                     bmp = IconLoader.LoadBitmap(item.Icon, item.IconIndex, size);
                     if (bmp == null)
-                        Debug.WriteLine($"PinnedBar icon failed, falling back to shell for '{expandedParam}' (icon='{item.Icon}')");
+                        Debug.WriteLine($"QuickLaunchBar icon failed, falling back to shell for '{expandedParam}' (icon='{item.Icon}')");
                 }
                 if (bmp == null &&
                     string.Equals(item.Type, "run", StringComparison.OrdinalIgnoreCase))
@@ -345,7 +345,7 @@ namespace FlyMenu
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar DrawHIconToBitmap failed: {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar DrawHIconToBitmap failed: {ex.Message}");
                 return null;
             }
         }
@@ -423,7 +423,7 @@ namespace FlyMenu
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar TryBitmapFromIconInfo failed: {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar TryBitmapFromIconInfo failed: {ex.Message}");
                 return null;
             }
             finally
@@ -466,7 +466,7 @@ namespace FlyMenu
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar ApplyMask failed: {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar ApplyMask failed: {ex.Message}");
             }
         }
 
@@ -486,7 +486,7 @@ namespace FlyMenu
         {
             if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
             {
-                Debug.WriteLine($"PinnedBar iconPath: file NOT found '{iconPath}'");
+                Debug.WriteLine($"QuickLaunchBar iconPath: file NOT found '{iconPath}'");
                 return null;
             }
 
@@ -501,7 +501,7 @@ namespace FlyMenu
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"PinnedBar iconPath (.ico) failed for '{iconPath}': {ex.Message}");
+                    Debug.WriteLine($"QuickLaunchBar iconPath (.ico) failed for '{iconPath}': {ex.Message}");
                 }
             }
 
@@ -510,7 +510,7 @@ namespace FlyMenu
             {
                 var large = new IntPtr[1];
                 uint count = ExtractIconEx(iconPath, iconIndex, large, null, 1);
-                Debug.WriteLine($"PinnedBar iconPath (ExtractIconEx): '{iconPath}' idx={iconIndex} count={count} hIcon=0x{large[0].ToInt64():X}");
+                Debug.WriteLine($"QuickLaunchBar iconPath (ExtractIconEx): '{iconPath}' idx={iconIndex} count={count} hIcon=0x{large[0].ToInt64():X}");
                 if (count > 0 && large[0] != IntPtr.Zero)
                 {
                     try { return DrawHIconToBitmap(large[0], size); }
@@ -519,7 +519,7 @@ namespace FlyMenu
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar iconPath ExtractIconEx threw for '{iconPath}': {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar iconPath ExtractIconEx threw for '{iconPath}': {ex.Message}");
             }
 
             return null;
@@ -529,12 +529,12 @@ namespace FlyMenu
         {
             if (string.IsNullOrWhiteSpace(path))
             {
-                Debug.WriteLine("PinnedBar icon: empty path");
+                Debug.WriteLine("QuickLaunchBar icon: empty path");
                 return null;
             }
             if (!File.Exists(path))
             {
-                Debug.WriteLine($"PinnedBar icon: file NOT found '{path}'");
+                Debug.WriteLine($"QuickLaunchBar icon: file NOT found '{path}'");
                 return null;
             }
 
@@ -544,7 +544,7 @@ namespace FlyMenu
                 var info = new SHFILEINFO();
                 IntPtr res = SHGetFileInfo(path, 0, ref info, (uint)Marshal.SizeOf<SHFILEINFO>(),
                     SHGFI_ICON | SHGFI_LARGEICON);
-                Debug.WriteLine($"PinnedBar icon (SHGetFileInfo): '{path}' res=0x{res.ToInt64():X} hIcon=0x{info.hIcon.ToInt64():X}");
+                Debug.WriteLine($"QuickLaunchBar icon (SHGetFileInfo): '{path}' res=0x{res.ToInt64():X} hIcon=0x{info.hIcon.ToInt64():X}");
                 if (info.hIcon != IntPtr.Zero)
                 {
                     try
@@ -560,7 +560,7 @@ namespace FlyMenu
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar SHGetFileInfo threw for '{path}': {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar SHGetFileInfo threw for '{path}': {ex.Message}");
             }
 
             // (2) ExtractIconEx - direct resource extraction, bypasses system imagelist
@@ -568,7 +568,7 @@ namespace FlyMenu
             {
                 var large = new IntPtr[1];
                 uint count = ExtractIconEx(path, 0, large, null, 1);
-                Debug.WriteLine($"PinnedBar icon (ExtractIconEx): '{path}' count={count} hIcon=0x{large[0].ToInt64():X}");
+                Debug.WriteLine($"QuickLaunchBar icon (ExtractIconEx): '{path}' count={count} hIcon=0x{large[0].ToInt64():X}");
                 if (count > 0 && large[0] != IntPtr.Zero)
                 {
                     try
@@ -584,7 +584,7 @@ namespace FlyMenu
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar ExtractIconEx threw for '{path}': {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar ExtractIconEx threw for '{path}': {ex.Message}");
             }
 
             // (3) Managed fallback
@@ -593,16 +593,16 @@ namespace FlyMenu
                 using var icon = Icon.ExtractAssociatedIcon(path);
                 if (icon != null)
                 {
-                    Debug.WriteLine($"PinnedBar icon (ExtractAssociatedIcon): '{path}' hIcon=0x{icon.Handle.ToInt64():X}");
+                    Debug.WriteLine($"QuickLaunchBar icon (ExtractAssociatedIcon): '{path}' hIcon=0x{icon.Handle.ToInt64():X}");
                     return DrawHIconToBitmap(icon.Handle, size);
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar ExtractAssociatedIcon threw for '{path}': {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar ExtractAssociatedIcon threw for '{path}': {ex.Message}");
             }
 
-            Debug.WriteLine($"PinnedBar icon: ALL loaders failed for '{path}'");
+            Debug.WriteLine($"QuickLaunchBar icon: ALL loaders failed for '{path}'");
             return null;
         }
 
@@ -628,7 +628,7 @@ namespace FlyMenu
             SetWindowPos(Handle, HWND_TOPMOST, location.X, location.Y, Width, Height,
                 SWP_NOACTIVATE | SWP_SHOWWINDOW);
 
-            Debug.WriteLine($"PinnedBar: ShowNoActivate at {location}, size ({Width}x{Height}), Visible={Visible}, IsWindowVisible={IsWindowVisible(Handle)}");
+            Debug.WriteLine($"QuickLaunchBar: ShowNoActivate at {location}, size ({Width}x{Height}), Visible={Visible}, IsWindowVisible={IsWindowVisible(Handle)}");
         }
 
         /// <summary>Hides the bar keeping WinForms' Visible state in sync.</summary>
@@ -649,7 +649,7 @@ namespace FlyMenu
             {
                 // Close menus so activation of the launched app is clean, then
                 // destroy this bar window entirely. The next activation will
-                // create a fresh PinnedBarWindow instance in the caller.
+                // create a fresh QuickLaunchBarWindow instance in the caller.
                 MenuActionHandler.CloseMenus();
                 LaunchShortcut(path);
                 BeginInvoke(new Action(() => Dispose()));
@@ -687,7 +687,7 @@ namespace FlyMenu
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"PinnedBar launch failed for '{path}': {ex.Message}");
+                Debug.WriteLine($"QuickLaunchBar launch failed for '{path}': {ex.Message}");
                 MessageBox.Show($"Failed to launch:\n{path}\n\n{ex.Message}",
                     "FlyMenu", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }

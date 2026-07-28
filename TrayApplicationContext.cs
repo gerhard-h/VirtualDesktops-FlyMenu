@@ -15,12 +15,12 @@ namespace FlyMenu
     {
         private readonly NotifyIcon notifyIcon;
         private readonly ContextMenuStrip trayMenu;
-        private readonly ContextMenuStrip flyoutMenu;
+        private readonly ContextMenuStrip quickLaunchMenu;
         private readonly ContextMenuStrip appMenu;  // New: App menu
         private System.Windows.Forms.Timer pollTimer = null!;
         private MessageWindow? messageWindow;
         private readonly List<HotAreaIndicator> hotAreaIndicators = new List<HotAreaIndicator>();
-        private PinnedBarWindow? pinnedBar;
+        private QuickLaunchBarWindow? quickLaunchBar;
         private readonly int uiThreadId;
 
         // Remembered state of the most recent ShowMenus() call so that
@@ -40,7 +40,7 @@ namespace FlyMenu
 
         public NotifyIcon NotifyIcon => notifyIcon;
         public ContextMenuStrip TrayMenu => trayMenu;
-        public ContextMenuStrip FlyoutMenu => flyoutMenu;
+        public ContextMenuStrip QuickLaunchMenu => quickLaunchMenu;
         public ContextMenuStrip AppMenu => appMenu;  // New: Expose app menu
         public System.Windows.Forms.Timer PollTimer { get => pollTimer; set => pollTimer = value; }
 
@@ -83,15 +83,15 @@ namespace FlyMenu
             notifyIcon.MouseClick += NotifyIcon_MouseClick;
 
             // Create the flyout menu container (items will be populated on demand)
-            flyoutMenu = new ContextMenuStrip();
-            flyoutMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
+            quickLaunchMenu = new ContextMenuStrip();
+            quickLaunchMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
 
             // Create the app menu container (items will be populated on demand)
             appMenu = new ContextMenuStrip();
             appMenu.Closed += (s, e) => { /* no-op - poller controls show/hide */ };
 
             // Set menu references in MenuActionHandler so actions can close menus
-            MenuActionHandler.SetMenuReferences(flyoutMenu, appMenu);
+            MenuActionHandler.SetMenuReferences(quickLaunchMenu, appMenu);
 
             // Provide a reopen hook for keepOpen menu items
             ReopenLastMenus = ReopenLastShownMenus;
@@ -116,8 +116,8 @@ namespace FlyMenu
             // Create the hot-area visual indicator (click-through, non-activating overlay)
             SyncHotAreaIndicators(ConfigLoader.GetHotAreaConfig());
 
-            // Pinned-bar is created on-demand in ShowPinnedBar and destroyed in
-            // DestroyPinnedBar (called when the combined menu bounds are left).
+            // Pinned-bar is created on-demand in ShowQuickLaunchBar and destroyed in
+            // DestroyQuickLaunchBar (called when the combined menu bounds are left).
 
             CreatePollTimer();
             System.Diagnostics.Debug.WriteLine("TrayApplicationContext: Initialization complete");
@@ -162,8 +162,19 @@ namespace FlyMenu
         /// </summary>
         private void ShowMenus(Point cursor, Screen screen, int yPosition, HotAreaConfig hotArea, bool moveCursor = true)
         {
-            if (!ConfigLoader.GetFlyoutMenuEnabled())
-                return;
+            // Each component's "enabled" flag governs only itself.
+            //   hotArea.enabled        -> whether the polling trigger fires (handled by caller)
+            //   quickLaunchMenu.enabled     -> show the desktop/flyout menu
+            //   runningApplicationsMenu.enabled -> show the running-apps side menu
+            //   quickLaunchBar.enabled      -> show the pinned bar
+            bool showFlyout = ConfigLoader.GetQuickLaunchMenuEnabled();
+            bool showAppMenu = ConfigLoader.GetShowAppMenu();
+
+            if (!showFlyout && !showAppMenu &&
+                (ConfigLoader.GetQuickLaunchBarConfig()?.Enabled != true))
+            {
+                return; // nothing to show
+            }
 
             // Remember args so "keepOpen" actions can reopen the menu at the same spot.
             lastShowCursor = cursor;
@@ -171,90 +182,116 @@ namespace FlyMenu
             lastShowYPosition = yPosition;
             lastShowHotArea = hotArea;
             hasLastShow = true;
-            // Populate desktop menu
-            PopulateMenuFromConfig();
 
-            // Check if app menu should be shown
-            bool showAppMenu = ConfigLoader.GetShowAppMenu();
+            // Populate desktop menu only if we'll actually display it
+            if (showFlyout)
+                PopulateMenuFromConfig();
 
             // Reserve vertical space for the pinned bar so it doesn't cover the
-            // menu it sits above. The flyout stays at the very top of the screen;
-            // only the anchor used to place other things (app menu / pinned bar)
-            // is offset downward.
-            int pinnedBarReserve = MeasurePinnedBarHeight();
+            // menu it sits above. The primary (top-anchored) menu stays at the very
+            // top of the screen; only the other anchors are offset downward.
+            int pinnedBarReserve = MeasureQuickLaunchBarHeight();
 
-            if (showAppMenu)
+            Rectangle? flyoutBoundsOpt = null;
+            Rectangle? appBoundsOpt = null;
+
+            if (showFlyout && showAppMenu)
             {
                 // Populate app menu
                 AppMenuBuilder.PopulateAppMenu(appMenu);
 
                 // CRITICAL FIX: Disable AutoClose temporarily to prevent Windows Forms from
-                // automatically closing flyoutMenu when appMenu.Show() is called
-                flyoutMenu.AutoClose = false;
+                // automatically closing quickLaunchMenu when appMenu.Show() is called
+                quickLaunchMenu.AutoClose = false;
                 appMenu.AutoClose = false;
 
                 // Show flyout menu first to get its width
-                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
+                MenuUIHelper.ShowMenuCenteredUnderCursor(quickLaunchMenu, cursor, screen, yPosition, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
+                PreventTaskbarAppearance(quickLaunchMenu);
 
-                // TASKBAR FIX: Prevent menu from appearing in taskbar
-                PreventTaskbarAppearance(flyoutMenu);
-
-                var flyoutBounds = flyoutMenu.Bounds;
+                var flyoutBounds = quickLaunchMenu.Bounds;
                 var work = screen.WorkingArea;
 
-                // Determine app-menu size before showing so we can decide the side
                 var appPreferred = appMenu.GetPreferredSize(Size.Empty);
                 int appMenuWidth = Math.Max(1, appPreferred.Width);
                 int appMenuHeight = Math.Max(1, appPreferred.Height);
 
-                // Prefer right side (zero gap). If it does not fit, place on the left instead.
                 int appMenuX;
                 if (flyoutBounds.Right + appMenuWidth <= work.Right)
-                {
                     appMenuX = flyoutBounds.Right;
-                }
                 else if (flyoutBounds.Left - appMenuWidth >= work.Left)
-                {
                     appMenuX = flyoutBounds.Left - appMenuWidth;
-                }
                 else
-                {
-                    // Neither side fits fully - clamp to right side of screen
                     appMenuX = Math.Max(work.Left, work.Right - appMenuWidth);
-                }
 
-                // Align vertically with flyout, plus reserve room for the pinned bar
-                // (the bar sits above the app menu, so push the app menu down by the
-                // bar's height). Flyout is intentionally NOT shifted.
+                // Align vertically with flyout; push app menu down by the pinned-bar
+                // height so the bar can sit above it. Flyout stays at top.
                 int appMenuY = flyoutBounds.Top + pinnedBarReserve;
                 if (appMenuY + appMenuHeight > work.Bottom)
                     appMenuY = Math.Max(work.Top, work.Bottom - appMenuHeight);
-                // Show with an explicit direction so WinForms does not auto-flip
-                // horizontally (which caused it to land on top of the flyout when
-                // invoked from the tray icon in the bottom-right corner).
-                appMenu.Show(new Point(appMenuX, appMenuY), ToolStripDropDownDirection.BelowRight);
 
-                // TASKBAR FIX: Prevent app menu from appearing in taskbar
+                appMenu.Show(new Point(appMenuX, appMenuY), ToolStripDropDownDirection.BelowRight);
                 PreventTaskbarAppearance(appMenu);
 
-                // Position optional pinned bar directly above the app menu
-                ShowPinnedBar(screen, appMenu.Bounds);
+                flyoutBoundsOpt = flyoutBounds;
+                appBoundsOpt = appMenu.Bounds;
 
                 System.Diagnostics.Debug.WriteLine($"ShowMenus: Flyout at ({flyoutBounds.X}, {flyoutBounds.Y}) size {flyoutBounds.Size}, App at ({appMenuX}, {appMenuY}) size ({appMenuWidth}, {appMenuHeight})");
             }
+            else if (showFlyout)
+            {
+                // Flyout only. When a pinned bar is enabled, shift the flyout down
+                // by the bar's height so the bar has room above it.
+                // AutoClose must be disabled BEFORE we show/create any other top-most
+                // window (the pinned bar) - otherwise WinForms treats the pinned bar
+                // handle creation as a focus change and closes the flyout, causing a
+                // one-frame outline flicker instead of a visible menu.
+                quickLaunchMenu.AutoClose = false;
+
+                int flyoutY = yPosition + pinnedBarReserve;
+                MenuUIHelper.ShowMenuCenteredUnderCursor(quickLaunchMenu, cursor, screen, flyoutY, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
+                PreventTaskbarAppearance(quickLaunchMenu);
+                flyoutBoundsOpt = quickLaunchMenu.Bounds;
+            }
+            else if (showAppMenu)
+            {
+                // App menu only. It takes the flyout's spatial slot.
+                AppMenuBuilder.PopulateAppMenu(appMenu);
+                appMenu.AutoClose = false;
+
+                var work = screen.WorkingArea;
+                var appPreferred = appMenu.GetPreferredSize(Size.Empty);
+                int appMenuWidth = Math.Max(1, appPreferred.Width);
+                int appMenuHeight = Math.Max(1, appPreferred.Height);
+
+                int appMenuX = Math.Max(work.Left, Math.Min(cursor.X - appMenuWidth / 2, work.Right - appMenuWidth));
+                int appMenuY = yPosition + pinnedBarReserve;
+                if (appMenuY + appMenuHeight > work.Bottom)
+                    appMenuY = Math.Max(work.Top, work.Bottom - appMenuHeight);
+
+                appMenu.Show(new Point(appMenuX, appMenuY), ToolStripDropDownDirection.BelowRight);
+                PreventTaskbarAppearance(appMenu);
+                appBoundsOpt = appMenu.Bounds;
+            }
+
+            // Position optional pinned bar above whichever menu is topmost/leftmost.
+            // Prefer the app menu's bounds when both are shown (it's what the bar
+            // was originally anchored to); otherwise use whichever surface exists.
+            Rectangle? anchor = appBoundsOpt ?? flyoutBoundsOpt;
+            if (anchor.HasValue)
+            {
+                ShowQuickLaunchBar(screen, anchor.Value);
+            }
             else
             {
-                // Show only flyout menu. When a pinned bar is enabled, the bar
-                // sits above the flyout, so push the flyout down by the bar's
-                // height to keep the bar within the screen and above the menu.
-                int flyoutY = yPosition + pinnedBarReserve;
-                MenuUIHelper.ShowMenuCenteredUnderCursor(flyoutMenu, cursor, screen, flyoutY, hotArea.Edge, hotArea.CatchMouse, hotArea.triggerHeight, moveCursor);
-
-                // TASKBAR FIX: Prevent menu from appearing in taskbar
-                PreventTaskbarAppearance(flyoutMenu);
-
-                // Pinned bar (if enabled) anchors above the flyout when there is no app menu
-                ShowPinnedBar(screen, flyoutMenu.Bounds);
+                // No menu shown, but the bar may still be enabled and standalone.
+                var cfg = ConfigLoader.GetQuickLaunchBarConfig();
+                if (cfg != null && cfg.Enabled && cfg.MenuItems != null && cfg.MenuItems.Count > 0)
+                {
+                    var work = screen.WorkingArea;
+                    var fakeAnchor = new Rectangle(cursor.X, yPosition + pinnedBarReserve, 1, 1);
+                    ShowQuickLaunchBar(screen, fakeAnchor);
+                }
             }
         }
 
@@ -263,9 +300,9 @@ namespace FlyMenu
         /// with the current config, or 0 if the bar is disabled/empty. Used to
         /// reserve vertical space above the menus so the bar does not cover them.
         /// </summary>
-        private static int MeasurePinnedBarHeight()
+        private static int MeasureQuickLaunchBarHeight()
         {
-            var cfg = ConfigLoader.GetPinnedBarConfig();
+            var cfg = ConfigLoader.GetQuickLaunchBarConfig();
             if (cfg == null || !cfg.Enabled || cfg.MenuItems == null || cfg.MenuItems.Count == 0)
                 return 0;
             int size = Math.Max(16, Math.Min(128, cfg.IconSize));
@@ -275,50 +312,50 @@ namespace FlyMenu
         /// <summary>
         /// Creates a fresh pinned bar window, populates it from config, and
         /// positions it directly above the given anchor (typically appMenu.Bounds
-        /// or flyoutMenu.Bounds), left-aligned to it. Any previous bar instance
+        /// or quickLaunchMenu.Bounds), left-aligned to it. Any previous bar instance
         /// is destroyed first so we never fight WinForms/Win32 state left over
         /// from a hidden window.
         /// </summary>
-        private void ShowPinnedBar(Screen screen, Rectangle anchor)
+        private void ShowQuickLaunchBar(Screen screen, Rectangle anchor)
         {
             // Always destroy any existing bar so each activation starts from a
             // fresh HWND. Cheap (few icons, few buttons) and avoids the
             // WS_EX_NOACTIVATE + WS_EX_TOPMOST re-show quirks we hit before.
-            DestroyPinnedBar();
+            DestroyQuickLaunchBar();
 
-            var cfg = ConfigLoader.GetPinnedBarConfig();
+            var cfg = ConfigLoader.GetQuickLaunchBarConfig();
             bool enabled = cfg != null && cfg.Enabled && cfg.MenuItems != null && cfg.MenuItems.Count > 0;
             if (!enabled) return;
 
-            pinnedBar = new PinnedBarWindow();
-            pinnedBar.Rebuild(cfg!);
+            quickLaunchBar = new QuickLaunchBarWindow();
+            quickLaunchBar.Rebuild(cfg!);
 
             var work = screen.WorkingArea;
 
             int barX = anchor.Left;
-            int barY = anchor.Top - pinnedBar.Height;
+            int barY = anchor.Top - quickLaunchBar.Height;
             if (barY < work.Top) barY = work.Top;
-            if (barX + pinnedBar.Width > work.Right)
-                barX = Math.Max(work.Left, work.Right - pinnedBar.Width);
+            if (barX + quickLaunchBar.Width > work.Right)
+                barX = Math.Max(work.Left, work.Right - quickLaunchBar.Width);
 
-            pinnedBar.ShowNoActivate(new Point(barX, barY));
+            quickLaunchBar.ShowNoActivate(new Point(barX, barY));
         }
 
         /// <summary>Destroys the current pinned bar instance if any.</summary>
-        private void DestroyPinnedBar()
+        private void DestroyQuickLaunchBar()
         {
-            if (pinnedBar != null)
+            if (quickLaunchBar != null)
             {
-                try { pinnedBar.Dispose(); }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"DestroyPinnedBar: {ex.Message}"); }
-                pinnedBar = null;
+                try { quickLaunchBar.Dispose(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"DestroyQuickLaunchBar: {ex.Message}"); }
+                quickLaunchBar = null;
             }
         }
 
         private void PopulateMenuFromConfig()
         {
             var configs = ConfigLoader.LoadMenuConfigs();
-            MenuBuilder.PopulateMenu(flyoutMenu, configs);
+            MenuBuilder.PopulateMenu(quickLaunchMenu, configs);
         }
 
         /// <summary>
@@ -350,11 +387,11 @@ namespace FlyMenu
 
                         // Make sure both menus are actually closed before re-showing;
                         // otherwise ContextMenuStrip.Show becomes a no-op.
-                        if (flyoutMenu.Visible) flyoutMenu.Close();
+                        if (quickLaunchMenu.Visible) quickLaunchMenu.Close();
                         if (appMenu.Visible) appMenu.Close();
 
                         // Re-enable AutoClose so the reopened menu behaves normally
-                        flyoutMenu.AutoClose = true;
+                        quickLaunchMenu.AutoClose = true;
                         appMenu.AutoClose = true;
 
                         // Use the last-known cursor rather than the (potentially moved)
@@ -402,7 +439,7 @@ namespace FlyMenu
             // Show when cursor is in hot area
             if (isInHotArea)
             {
-                if (!flyoutMenu.Visible)
+                if (!quickLaunchMenu.Visible)
                 {
                     ShowMenus(cursor, screen, GetMenuYPosition(screen, hotArea), hotArea);
                 }
@@ -414,7 +451,7 @@ namespace FlyMenu
             // Hide menus if visible and cursor moves away from them
             // BUT only if cursor is NOT in the hot area
             // Combine bounds of any visible surface (flyout / app menu / pinned bar)
-            if (flyoutMenu.Visible || appMenu.Visible || (pinnedBar != null && pinnedBar.Visible))
+            if (quickLaunchMenu.Visible || appMenu.Visible || (quickLaunchBar != null && quickLaunchBar.Visible))
             {
                 Rectangle combinedBounds = Rectangle.Empty;
 
@@ -423,9 +460,9 @@ namespace FlyMenu
                     combinedBounds = combinedBounds.IsEmpty ? r : Rectangle.Union(combinedBounds, r);
                 }
 
-                if (flyoutMenu.Visible) AddBounds(flyoutMenu.Bounds);
+                if (quickLaunchMenu.Visible) AddBounds(quickLaunchMenu.Bounds);
                 if (appMenu.Visible) AddBounds(appMenu.Bounds);
-                if (pinnedBar?.Visible == true) AddBounds(pinnedBar.Bounds);
+                if (quickLaunchBar?.Visible == true) AddBounds(quickLaunchBar.Bounds);
 
                 var padded = Rectangle.Inflate(combinedBounds, 8, 8);
 
@@ -435,9 +472,9 @@ namespace FlyMenu
                 if (!padded.Contains(cursor))
                 {
                     MenuUIHelper.DisableMouseCatch();
-                    flyoutMenu.Close();
+                    quickLaunchMenu.Close();
                     appMenu.Close();
-                    DestroyPinnedBar();
+                    DestroyQuickLaunchBar();
                 }
             }
         }
@@ -749,13 +786,13 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
             NotifyIcon.Visible = false;
             NotifyIcon.Dispose();
             TrayMenu.Dispose();
-            flyoutMenu.Dispose();
+            quickLaunchMenu.Dispose();
             appMenu.Dispose();  // Clean up app menu
 
             foreach (var ind in hotAreaIndicators) ind.Dispose();
             hotAreaIndicators.Clear();
 
-            DestroyPinnedBar();
+            DestroyQuickLaunchBar();
 
             Application.Exit();
         }
@@ -805,11 +842,11 @@ System.Diagnostics.Debug.WriteLine($"ParseMessageToConfig: Creating direct actio
                 PollTimer?.Dispose();
                 NotifyIcon?.Dispose();
                 TrayMenu?.Dispose();
-                flyoutMenu?.Dispose();
+                quickLaunchMenu?.Dispose();
 appMenu?.Dispose();  // Clean up app menu
                 foreach (var ind in hotAreaIndicators) ind.Dispose();
                 hotAreaIndicators.Clear();
-                DestroyPinnedBar();
+                DestroyQuickLaunchBar();
 }
 
    base.Dispose(disposing);
