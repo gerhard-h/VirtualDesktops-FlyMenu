@@ -29,18 +29,18 @@ to screen edge triggers. If your mouse can not run executables, create a link/sh
 `flyctl` accepts any menu label as parameter. Special commands: default=`show`, `reload`
 
 ```
-┌──────────┌────────────▼────────┐┌──────────────┐──────────────────────┐
-│      │ ▶ Latest Desktop    ││ Dock Desktop 1
-│  │ ▶ Desktop 1  ││ app1   
-│    │ ▶ Desktop 2         ││ app2
-│        │ ▶ Desktop n         ││Dock Desktop 2
-│        ├─────────────────────┤│ app 3       
-│          │ ▶ Next Desktop      │└──────────────┘
-│          │ ▶ Show Desktop      │
-│     │ ▶ Screenshot        │
-│          │ ▶ Win+Tab           │      
-│      │ ▶ Run notepad++     │  
-││ ▶ ...     │
+┌──────────┌────────────▼────────┐┌───────────────┐──────────────────────┐
+│          │ ▶ Latest Desktop    ││ Dock Desktop 1
+│          │ ▶ Desktop 1         ││ running app1   
+│          │ ▶ Desktop 2         │┌───────────────┐
+│          │ ▶ Desktop n         ││Dock Desktop 1 │
+│          ├─────────────────────┤│ running app2   
+│          │ ▶ Next Desktop      ││ running app2   
+│          │ ▶ Show Desktop      ││Dock Desktop 2  
+│          │ ▶ Screenshot        ││ running app2  │
+│          │ ▶ Win+Tab           │└───────────────┘      
+│          │ ▶ Run notepad++     │  
+│          │ ▶ ...     │
 │          └─────────────────────┘  
 │       
 │  
