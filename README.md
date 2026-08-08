@@ -1,6 +1,6 @@
 ﻿# VirtualDesktops-FlyMenu and Taskbar Replacement (in certain situations)
 
-A customizable fly-out menu triggered by (parts) of the screen edges or by hotkey or by contol program.
+A customizable fly-out menu triggered by Mouseover on (parts) of the screen edge or by hotkey or by contol program.
 For Example use a 
 
 **Why**
@@ -8,20 +8,6 @@ This is a more conceized and faster alternative to Windows WIN+TAB functionality
 And it can be triggerd just by the mouse
 It also works while in full-screen remote desktop sessions.
 It also offers menu items or quicklaunch icons for programs and for executing keyboard shortcuts.
-
-**NEW**: FlyCtl.exe is a high-performance command-line tool for controlling FlyMenu from external applications or your mouse.
-(while FlyMenu.exe is running in the background to offer fast Desktop switching )
-
-## Shortcut / Taskbar / .lnk File support
-With the included `FlyCtl.exe` or legacy `flyctl.ahk` script you can create shortcuts
-to desktop actions (or any other actions) on the taskbar.
-**Recommended**: `FlyCtl.exe "Desktop 2"` (fast)  
-**Legacy**: `autohotkey flyctl.ahk "Desktop 2"` (slower)
-
-## activation per mouse button 
-Bind `FlyCtl.exe show` or just `FlyCtl.exe` to any mouse button or gesture as an alternative activation method to screen edge triggers.
-If your mouse can not run executables, create a link/shortcut to flyctl and define a keyboard shortcut to that .lnk. (But keep in mind the FlyMenu itself does not support keyboard input). 
-`flyctl.exe` accepts any menu label as parameter. Special commands: default=`show`, `reload`
 
 ```
 ┌──────────┌────────────▼────────┐┌────────────────────────────────────────────────────────────────┐────────────────────┐
@@ -46,17 +32,44 @@ If your mouse can not run executables, create a link/shortcut to flyctl and defi
 
 ## 🌟 Features
 - **🖱️ Edge-Triggered Menu** - Hover your mouse at any screen edge (top, bottom, left, right) to instantly reveal the menu
+- **   Colored (semitranparent) strip on top of all applications to show the location of the hotarea
+- **   Customizable wich features you want: Mouseover Area, Mouseover color indicator, applicatinon list, quicklaunch bar.
 - **🖥️ Virtual Desktop Management** - Switch between Windows virtual desktops seamlessly
   - Switch to last used desktop
-  - Switch desktop left/right with rollover
+  - Switch desktop left/right with rollover (with "Menu keep open" option)
   - Direct access to all desktops by name
-- ** ALT-Tab like Dock sortable by name or last used
-- **🎯 Launch programs
-- **📍 Run keyboard shortcuts
+- ** ALT-Tab like running application list sortable by name or last used, grouped by Desktop
+- **🎯 Launch programs from FlyMenu or Quicklauch bar
+- **📍 Run keyboard shortcuts (from FlyMenu or Quicklauch bar)
 - **📍 Smart Positioning** - Menu appears centered under cursor with first menu item highlighted
-- **💾 JSON Configuration** - Easy-to-edit configuration
-- **🎨 Icon Support** - Custom icons for menu items
+- **💾 JSON Configuration** - Easy-to-edit configuration (see example config how to escape \\ and " )
+- **🎨 Icon Support** - icons can be pointing to an .ico .exe ord .dll file
 - **⚡ Fast External Control** - FlyCtl.exe for sub-10ms response time
+
+**NEW**: FlyCtl.exe is a high-performance command-line tool for controlling FlyMenu from external applications or your mouse.
+(while FlyMenu.exe is running in the background to offer fast Desktop switching )
+HINT use `flyctl.exe reload` to reflect your config changes without restarting flymenu.exe
+
+## Shortcut / Taskbar / .lnk File support
+With the included `FlyCtl.exe` or legacy `flyctl.ahk` script you can create shortcuts
+to desktop actions (or any other actions) on the taskbar.
+**Recommended**: `FlyCtl.exe "Desktop 2"` (fast)  
+**Legacy**: `autohotkey flyctl.ahk "Desktop 2"` (slower)
+
+## activation per mouse button 
+Bind `FlyCtl.exe show` or just `FlyCtl.exe` to any mouse button or gesture as an alternative activation method to screen edge triggers.
+If your mouse can not run executables, create a link/shortcut to flyctl and define a keyboard shortcut to that .lnk. (But keep in mind the FlyMenu itself does not support keyboard input). 
+`flyctl.exe` accepts any menu label as parameter. Special commands: default=`show`, `reload`
+
+## What is missing (because it is hard to implement)
+- no jump list support
+- no keyboard navigation 
+- no UI for Editing the Menu items (must all be done in the config)
+- no submenus (but you could run multiple instances of FlyMenu)
+
+## Issues
+- no binariy releases - please build yourself
+- edges <> top are not tested
 
 ## 📋 Requirements/ Tested Environment
 
@@ -105,6 +118,8 @@ Details are within the .config file itself.
 
 
 ## 📝 Menu Item Types
+
+more configuration details are inside the included FlyMenu.config.json
 
 ### Virtual Desktop Actions
 
