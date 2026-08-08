@@ -1,19 +1,16 @@
-﻿# VirtualDesktops-FlyMenu
+﻿# VirtualDesktops-FlyMenu and Taskbar Replacement (in certain situations)
 
 A customizable fly-out menu triggered by (parts) of the screen edges or by hotkey or by contol program.
+For Example use a 
 
+**Why**
 This is a more conceized and faster alternative to Windows WIN+TAB functionality, for switching desktops and applications.
+And it can be triggerd just by the mouse
 It also works while in full-screen remote desktop sessions.
-It also offers a launchpad for programs and for executing keyboard shortcuts.
+It also offers menu items or quicklaunch icons for programs and for executing keyboard shortcuts.
 
-
-**NEW**: FlyCtl is now a high-performance command-line tool for controlling FlyMenu from external applications.
-(FlyMenu.exe is running in the background to offer fast Desktop switching )
-
-### Performance Comparison
-- **FlyCtl.exe**: ~5-10ms ⚡ (Recommended)
-- **flyctl.ps1** (PowerShell): ~30-50ms
-- **flyctl.ahk** (AutoHotkey): ~50-100ms
+**NEW**: FlyCtl.exe is a high-performance command-line tool for controlling FlyMenu from external applications or your mouse.
+(while FlyMenu.exe is running in the background to offer fast Desktop switching )
 
 ## Shortcut / Taskbar / .lnk File support
 With the included `FlyCtl.exe` or legacy `flyctl.ahk` script you can create shortcuts
@@ -22,22 +19,20 @@ to desktop actions (or any other actions) on the taskbar.
 **Legacy**: `autohotkey flyctl.ahk "Desktop 2"` (slower)
 
 ## activation per mouse button 
-Bind `FlyCtl.exe show` or just `FlyCtl.exe` to any mouse button or gesture as an alternative activation method 
-to screen edge triggers. If your mouse can not run executables, create a link/shortcut to flyctl and define a keyboard shortcut to that .lnk. But keep in mind the FlyMenu itself does not support keyboard input. 
-
-
-`flyctl` accepts any menu label as parameter. Special commands: default=`show`, `reload`
+Bind `FlyCtl.exe show` or just `FlyCtl.exe` to any mouse button or gesture as an alternative activation method to screen edge triggers.
+If your mouse can not run executables, create a link/shortcut to flyctl and define a keyboard shortcut to that .lnk. (But keep in mind the FlyMenu itself does not support keyboard input). 
+`flyctl.exe` accepts any menu label as parameter. Special commands: default=`show`, `reload`
 
 ```
-┌──────────┌────────────▼────────┐┌───────────────┐──────────────────────┐
-│          │ ▶ Latest Desktop    ││ Dock Desktop 1
-│          │ ▶ Desktop 1         ││ running app1   
+┌──────────┌────────────▼────────┐┌────────────────────────────────────────────────────────────────┐────────────────────┐
+│          │ ▶ Latest Desktop    ││ Q │ u │ i │ c │ k │ l │ a │ u │ n │ c │ h │ i │ c │ o │ n │ s │ 
+│          │ ▶ Desktop 1         │└───────────────────────────────────────────────────────────────┘ 
 │          │ ▶ Desktop 2         │┌───────────────┐
 │          │ ▶ Desktop n         ││Dock Desktop 1 │
-│          ├─────────────────────┤│ running app2   
+│          ├─────────────────────┤│ running app1   
 │          │ ▶ Next Desktop      ││ running app2   
 │          │ ▶ Show Desktop      ││Dock Desktop 2  
-│          │ ▶ Screenshot        ││ running app2  │
+│          │ ▶ Screenshot        ││ running app1  │
 │          │ ▶ Win+Tab           │└───────────────┘      
 │          │ ▶ Run notepad++     │  
 │          │ ▶ ...     │
@@ -46,7 +41,7 @@ to screen edge triggers. If your mouse can not run executables, create a link/sh
 │  
 │          ┌─┐┌─┐┌─┐┌─┐
 │          │⊞││1││2││3│
-└──────────└─┘└─┘└─┘└─┘────────────────────────────────────────────────┘
+└──────────└─┘└─┘└─┘└─┘────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 🌟 Features
@@ -242,6 +237,10 @@ dotnet run
 - **[Slions.VirtualDesktop](https://www.nuget.org/packages/Slions.VirtualDesktop/)** - Virtual Desktop API wrapper
 - **[InputSimulatorStandard](https://www.nuget.org/packages/InputSimulatorStandard/)** - Keyboard input simulation
 
+### Performance Comparison for destop switching
+- **FlyCtl.exe**: ~5-10ms ⚡ (Recommended)
+- **flyctl.ps1** (PowerShell): ~30-50ms
+- **flyctl.ahk** (AutoHotkey): ~50-100ms
 
 ## 🐛 Troubleshooting
 
