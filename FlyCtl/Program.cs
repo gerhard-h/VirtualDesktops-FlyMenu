@@ -4,9 +4,18 @@ using System.Text;
 namespace FlyCtl;
 
 /// <summary>
-/// Fast command-line tool to send commands to FlyMenu via WM_COPYDATA
-/// Usage: flyctl [command]
-/// Example: flyctl show
+/// Fast command-line tool to send commands to FlyMenu via WM_COPYDATA.
+/// Usage:
+///   flyctl [command1] [command2]
+///
+/// If two commands are supplied, FlyCtl behaves like a "double-tap":
+///   - First invocation runs command1 and stores a timestamp in flyctl.ini
+///   - A second invocation within DoubleClickWindowMs runs command2 instead
+///     of command1 (still touching the timestamp).
+///
+/// Example: flyctl "latest" "Next Desktop"
+///   Single press  -> switch to latest desktop
+///   Quick re-press -> Next Desktop
 /// </summary>
 class Program
 {
@@ -31,14 +40,30 @@ class Program
 
     private const uint WM_COPYDATA = 0x004A;
     private const string WINDOW_TITLE = "FlyMenuReceiverWindow";
+    private const int DefaultDoubleClickWindowMs = 400;
     private static IntPtr foundWindowHandle = IntPtr.Zero;
 
     static int Main(string[] args)
     {
-        // Default to "show" if no arguments
-        string command = args.Length > 0 ? string.Join(" ", args) : "show";
+        var cfg = ReadConfig();
 
-        // Find the FlyMenu receiver window
+        // Parse up to two commands. Defaults come from flyctl.ini (defaultCommand1/2),
+        // falling back to "show" if nothing is configured.
+        string cmd1 = args.Length > 0 ? args[0] : (cfg.defaultCmd1 ?? "show");
+        string? cmd2 = args.Length > 1 ? args[1] : (args.Length == 0 ? cfg.defaultCmd2 : null);
+
+        // Second-tap logic: only relevant when a second command was supplied.
+        string command = cmd1;
+        if (cmd2 != null)
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (cfg.hasLast && (now - cfg.last).TotalMilliseconds <= cfg.windowMs)
+            {
+                command = cmd2;
+            }
+            WriteLastInvocation(now, cfg.windowMs, cfg.defaultCmd1, cfg.defaultCmd2);
+        }
+
         if (!FindFlyMenuWindow())
         {
             Console.Error.WriteLine("Error: FlyMenu is not running (receiver window not found)");
@@ -46,15 +71,106 @@ class Program
             return 1;
         }
 
-        // Send the command
         if (SendCommandToFlyMenu(command))
         {
-            return 0; // Success
+            return 0;
         }
         else
         {
             Console.Error.WriteLine("Warning: Message sent but receiver returned zero");
             return 1;
+        }
+    }
+
+    // ---------- flyctl.ini (timestamp store) ----------
+
+    private static string IniPath =>
+        Path.Combine(AppContext.BaseDirectory, "flyctl.ini");
+
+    private record struct IniConfig(DateTimeOffset last, bool hasLast, int windowMs, string? defaultCmd1, string? defaultCmd2);
+
+    private static IniConfig ReadConfig()
+    {
+        DateTimeOffset ts = default;
+        bool hasTs = false;
+        int windowMs = DefaultDoubleClickWindowMs;
+        string? def1 = null;
+        string? def2 = null;
+        try
+        {
+            if (!File.Exists(IniPath)) return new IniConfig(default, false, windowMs, null, null);
+            foreach (var raw in File.ReadAllLines(IniPath))
+            {
+                var line = raw.Trim();
+                if (TryGetValue(line, "lastInvocation=", out var lastVal))
+                {
+                    if (DateTimeOffset.TryParse(lastVal, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                        out var parsed))
+                    {
+                        ts = parsed;
+                        hasTs = true;
+                    }
+                }
+                else if (TryGetValue(line, "doubleClickWindowMs=", out var msVal))
+                {
+                    if (int.TryParse(msVal, System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out var parsedMs) && parsedMs >= 0)
+                    {
+                        windowMs = parsedMs;
+                    }
+                }
+                else if (TryGetValue(line, "defaultCommand1=", out var d1))
+                {
+                    def1 = Unquote(d1);
+                }
+                else if (TryGetValue(line, "defaultCommand2=", out var d2))
+                {
+                    def2 = Unquote(d2);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"flyctl.ini read failed: {ex.Message}");
+        }
+        return new IniConfig(ts, hasTs, windowMs, def1, def2);
+    }
+
+    private static bool TryGetValue(string line, string key, out string value)
+    {
+        if (line.StartsWith(key, StringComparison.OrdinalIgnoreCase))
+        {
+            value = line.Substring(key.Length).Trim();
+            return true;
+        }
+        value = string.Empty;
+        return false;
+    }
+
+    private static string Unquote(string s)
+    {
+        if (s.Length >= 2 && s[0] == '"' && s[^1] == '"')
+            return s.Substring(1, s.Length - 2);
+        return s;
+    }
+
+    private static void WriteLastInvocation(DateTimeOffset now, int windowMs, string? defaultCmd1, string? defaultCmd2)
+    {
+        try
+        {
+            var iso = now.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+            var sb = new StringBuilder();
+            sb.AppendLine("[flyctl]");
+            sb.AppendLine("doubleClickWindowMs=" + windowMs.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (defaultCmd1 != null) sb.AppendLine("defaultCommand1=\"" + defaultCmd1 + "\"");
+            if (defaultCmd2 != null) sb.AppendLine("defaultCommand2=\"" + defaultCmd2 + "\"");
+            sb.AppendLine("lastInvocation=" + iso);
+            File.WriteAllText(IniPath, sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"flyctl.ini write failed: {ex.Message}");
         }
     }
 

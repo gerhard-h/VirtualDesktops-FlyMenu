@@ -691,6 +691,23 @@ namespace FlyMenu
                     return;
                 }
 
+                // "latest" is a convenience alias for "switch before" (go to the
+                // most recently used desktop). Rewrite in place and fall through.
+                if (lowerMessage == "latest")
+                {
+                    System.Diagnostics.Debug.WriteLine($"ProcessMessage [{callId}]: Latest -> switch before");
+                    var latestConfig = new MenuItemConfig { Type = "switch before" };
+                    var deferTimer = new System.Windows.Forms.Timer { Interval = 1 };
+                    deferTimer.Tick += (s, e) =>
+                    {
+                        deferTimer.Stop();
+                        deferTimer.Dispose();
+                        MenuActionHandler.ExecuteMenuAction(latestConfig);
+                    };
+                    deferTimer.Start();
+                    return;
+                }
+
                 // Parse regular menu actions
                 var config = ParseMessageToConfig(message);
 
